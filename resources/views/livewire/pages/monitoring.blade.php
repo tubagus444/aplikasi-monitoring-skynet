@@ -106,19 +106,103 @@ new #[Layout('layouts.app')] class extends Component
         </div>
 
         {{-- Peta --}}
-        <div class="lg:col-span-2">
+        <div wire:ignore class="lg:col-span-2">
             <x-mary-card class="!p-0 overflow-hidden">
-                <div
-                    x-data="monitoringMap(@json($technicianLocations))"
-                    x-init="init()"
-                    @locations-updated.window="updateMarkers($event.detail.locations)"
-                    @focus-technician.window="focusMarker($event.detail.id)"
-                >
-                    <div x-ref="map" class="h-[520px] w-full"></div>
-                </div>
+                <div id="monitoring-map" style="height:520px;width:100%;"></div>
             </x-mary-card>
         </div>
 
     </div>
 </div>
 
+@script
+<script>
+    (function () {
+        const el = document.getElementById('monitoring-map');
+        if (!el) return;
+
+        // Inisialisasi peta hanya sekali (cek _leaflet_id mencegah double-init)
+        if (el._leaflet_id) return;
+
+        const map = L.map(el).setView([-6.37, 107.16], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 19,
+        }).addTo(map);
+
+        const markers = {};
+        let viewInitialized = false;
+
+        function updateMarkers(locations, fitView) {
+            const activeIds = locations
+                .filter(l => l.latitude && l.longitude)
+                .map(l => String(l.id));
+
+            Object.keys(markers).forEach(id => {
+                if (!activeIds.includes(id)) {
+                    map.removeLayer(markers[id]);
+                    delete markers[id];
+                }
+            });
+
+            const markerList = [];
+
+            locations.forEach(loc => {
+                if (!loc.latitude || !loc.longitude) return;
+
+                const popup = `
+                    <div style="min-width:160px;line-height:1.4">
+                        <p style="font-weight:600;margin:0 0 4px;font-size:13px">${loc.name}</p>
+                        <p style="margin:0;font-size:12px;color:#555">${loc.customer}</p>
+                        <p style="margin:2px 0 0;font-size:11px;color:#888">${loc.damage_type}</p>
+                        <p style="margin:2px 0 0;font-size:11px;color:#aaa">${loc.address}</p>
+                        ${loc.last_update ? `<p style="margin:6px 0 0;font-size:11px;color:#aaa">&#128205; ${loc.last_update}</p>` : ''}
+                    </div>`;
+
+                const id = String(loc.id);
+
+                if (markers[id]) {
+                    markers[id].setLatLng([loc.latitude, loc.longitude]);
+                    markers[id].getPopup().setContent(popup);
+                } else {
+                    markers[id] = L.marker([loc.latitude, loc.longitude])
+                        .bindPopup(popup)
+                        .addTo(map);
+                }
+                markerList.push(markers[id]);
+            });
+
+            // Fit bounds hanya pada load pertama, bukan saat poll berikutnya
+            if (fitView && !viewInitialized && markerList.length > 0) {
+                if (markerList.length === 1) {
+                    map.setView(markerList[0].getLatLng(), 15);
+                } else {
+                    map.fitBounds(L.featureGroup(markerList).getBounds().pad(0.3));
+                }
+                viewInitialized = true;
+            }
+        }
+
+        // Data awal — fit view ke marker
+        setTimeout(() => {
+            map.invalidateSize();
+            updateMarkers(@json($technicianLocations), true);
+        }, 100);
+
+        // Update marker saat poll — tidak reset view
+        $wire.on('locations-updated', ({ locations }) => {
+            updateMarkers(locations, false);
+        });
+
+        // Focus marker saat klik sidebar
+        document.addEventListener('focus-technician', (e) => {
+            const marker = markers[String(e.detail.id)];
+            if (marker) {
+                map.setView(marker.getLatLng(), 17);
+                marker.openPopup();
+            }
+        });
+    })();
+</script>
+@endscript

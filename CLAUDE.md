@@ -263,11 +263,34 @@ Android mengirim nilai berbeda dari yang disimpan di DB — ini hidden contract:
 
 Transisi hanya boleh searah: `ditugaskan` → `in_progress` → `done`. Loncat tidak diizinkan.
 
-### Monitoring GPS (Leaflet.js)
+### Leaflet.js + Livewire — Pola Wajib
 
-Pola di `monitoring.blade.php`:
-- `wire:poll.10s="loadLocations"` — Livewire refresh data tiap 10 detik
-- `$this->dispatch('locations-updated', locations: $result)` — kirim data baru ke browser
-- Alpine.js `@locations-updated.window` — update marker tanpa re-init peta
-- `@assets` directive — load Leaflet CDN sekali, persisten saat `wire:navigate`
-- Klik sidebar → `$dispatch('focus-technician', {id})` → Alpine zoom ke marker
+Leaflet memanipulasi DOM langsung. Ada dua aturan wajib agar tidak konflik dengan Livewire:
+
+**1. `wire:ignore` pada container peta**
+```html
+<div wire:ignore>
+    <div id="my-map" style="height:400px;"></div>
+</div>
+```
+Tanpa ini, `wire:poll` atau re-render apapun akan menghapus peta karena Livewire morphdom mengganti DOM.
+
+**2. `@script` untuk inisialisasi, bukan inline `<script>`**
+```blade
+@script
+<script>
+    const el = document.getElementById('my-map');
+    if (!el || el._leaflet_id) return; // cegah double-init
+    const map = L.map(el).setView([...], 12);
+    // ...
+    $wire.on('event-name', ({ data }) => { /* update marker */ });
+</script>
+@endscript
+```
+Inline `<script>` biasa tidak jalan saat `wire:navigate`. `@script` dijamin jalan setelah component mount, dan punya akses ke `$wire`.
+
+**Alur data di monitoring.blade.php:**
+- `wire:poll.10s="loadLocations"` → Livewire re-render sidebar + `$this->dispatch('locations-updated', locations: $result)`
+- `$wire.on('locations-updated')` di `@script` → update marker tanpa reset view
+- `viewInitialized` flag → `fitBounds` hanya sekali saat load pertama, bukan tiap poll
+- Klik sidebar → Alpine `$dispatch('focus-technician', {id})` → `document.addEventListener` di `@script` zoom ke marker
