@@ -2,6 +2,7 @@
 
 use App\Models\DamageReport;
 use App\Models\DamageType;
+use App\Models\Notification;
 use App\Models\TaskAssignment;
 use App\Models\User;
 use Livewire\Attributes\Computed;
@@ -92,11 +93,21 @@ new #[Layout('layouts.app')] class extends Component
             ]);
 
             // Sync teknisi
+            $existingTechIds = $report->taskAssignments()->pluck('technician_id')->toArray();
             $report->taskAssignments()->delete();
             foreach ($this->selectedTechnicians as $techId) {
                 TaskAssignment::create([
                     'report_id'      => $report->id,
                     'technician_id'  => $techId,
+                ]);
+            }
+
+            // Notifikasi hanya ke teknisi yang baru ditambahkan
+            foreach (array_diff($this->selectedTechnicians, $existingTechIds) as $techId) {
+                Notification::create([
+                    'user_id' => $techId,
+                    'title'   => 'Tugas Baru Ditugaskan',
+                    'body'    => "Anda ditugaskan untuk menangani laporan gangguan di {$this->address} atas nama pelanggan {$this->customer_name}.",
                 ]);
             }
         } else {
@@ -113,6 +124,11 @@ new #[Layout('layouts.app')] class extends Component
                 TaskAssignment::create([
                     'report_id'     => $report->id,
                     'technician_id' => $techId,
+                ]);
+                Notification::create([
+                    'user_id' => $techId,
+                    'title'   => 'Tugas Baru Ditugaskan',
+                    'body'    => "Anda ditugaskan untuk menangani laporan gangguan di {$this->address} atas nama pelanggan {$this->customer_name}.",
                 ]);
             }
         }
