@@ -13,6 +13,7 @@ Aplikasi web admin + Android untuk monitoring perbaikan jaringan. Studi kasus sk
 | Build Tool | Vite v8 |
 | Peta | Leaflet.js + OpenStreetMap |
 | Auth API | Laravel Sanctum (token-based, untuk Android) |
+| Push Notification | Firebase FCM (`kreait/laravel-firebase v7`) |
 | Database | MySQL via Laragon |
 | Mobile | Android (Kotlin) — repo terpisah |
 | Dev Environment | Laragon (Windows) |
@@ -26,8 +27,9 @@ composer dev
 # Setup awal project
 composer setup
 
-# Jalankan test
+# Jalankan test (gunakan php artisan test jika composer tidak ada di PATH)
 composer test
+php artisan test
 
 # Build assets
 npm run build
@@ -109,6 +111,8 @@ app/
                         # LocationController, NotificationController
   Models/               # DamageReport, DamageType, TaskAssignment,
                         # WorkLog, LocationLog, Notification, User
+  Observers/
+    NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
   web.php               # Volt routes (admin panel)
   api.php               # 8 API endpoints (Android via Sanctum)
@@ -121,6 +125,12 @@ resources/views/livewire/pages/
 database/
   migrations/           # Semua migrasi tabel
   seeders/              # Seeder untuk semua tabel utama
+  factories/            # UserFactory, DamageTypeFactory, DamageReportFactory
+config/
+  firebase.php          # Konfigurasi kreait/laravel-firebase
+tests/
+  Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
+                        # (21 test cases, semua pass)
 ```
 
 ## Routes & Endpoint
@@ -201,6 +211,8 @@ database/
 ## Konvensi Kode
 
 - Komponen UI menggunakan Mary UI — lihat dokumentasi di `robsontenorio/mary`
+- FCM push notification dikirim otomatis via `NotificationObserver` setiap kali `Notification::create()` dipanggil — tidak perlu memanggil FCM manual di tempat lain
+- `FIREBASE_CREDENTIALS` di `.env` wajib diisi path ke service account JSON Firebase (file JSON tidak boleh di-commit ke git, sudah ada di `.gitignore`)
 - Halaman interaktif dibuat sebagai Livewire Volt component (bukan controller biasa)
 - API untuk Android menggunakan prefix `/api` dengan auth `sanctum`
 - Role middleware ada di `app/Http/Middleware/RoleMiddleware.php`
