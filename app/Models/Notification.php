@@ -8,6 +8,8 @@ class Notification extends Model
 {
     public $timestamps = false;
 
+    protected $with = ['user'];
+
     protected $fillable = [
         'user_id',
         'title',

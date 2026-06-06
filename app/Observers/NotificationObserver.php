@@ -1,0 +1,35 @@
+<?php
+
+namespace App\Observers;
+
+use App\Models\Notification;
+use Illuminate\Support\Facades\Log;
+use Kreait\Firebase\Contract\Messaging;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification as FcmNotification;
+
+class NotificationObserver
+{
+    public function __construct(private Messaging $messaging) {}
+
+    public function created(Notification $notification): void
+    {
+        $fcmToken = $notification->user?->fcm_token;
+
+        if (! $fcmToken) {
+            return;
+        }
+
+        try {
+            $message = CloudMessage::withTarget('token', $fcmToken)
+                ->withNotification(FcmNotification::create($notification->title, $notification->body));
+
+            $this->messaging->send($message);
+        } catch (\Throwable $e) {
+            Log::warning('FCM send failed', [
+                'notification_id' => $notification->id,
+                'error'           => $e->getMessage(),
+            ]);
+        }
+    }
+}
