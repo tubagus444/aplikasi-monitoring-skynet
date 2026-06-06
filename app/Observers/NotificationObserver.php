@@ -10,8 +10,6 @@ use Kreait\Firebase\Messaging\Notification as FcmNotification;
 
 class NotificationObserver
 {
-    public function __construct(private Messaging $messaging) {}
-
     public function created(Notification $notification): void
     {
         $fcmToken = $notification->user?->fcm_token;
@@ -21,10 +19,11 @@ class NotificationObserver
         }
 
         try {
-            $message = CloudMessage::withTarget('token', $fcmToken)
+            $message = CloudMessage::new()
+                ->withToken($fcmToken)
                 ->withNotification(FcmNotification::create($notification->title, $notification->body));
 
-            $this->messaging->send($message);
+            app(Messaging::class)->send($message);
         } catch (\Throwable $e) {
             Log::warning('FCM send failed', [
                 'notification_id' => $notification->id,
