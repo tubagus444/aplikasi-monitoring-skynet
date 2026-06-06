@@ -95,35 +95,36 @@ new #[Layout('layouts.app')] class extends Component
     </x-mary-header>
 
     {{-- Stat cards --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <x-stat
-            title="Total Laporan"
-            value="{{ $this->totalLaporan }}"
-            description="{{ $this->laporan_ditugaskan }} belum ditugaskan"
-            icon="o-exclamation-circle"
-            class="bg-base-200"
-        />
-        <x-stat
-            title="Sedang Dikerjakan"
-            value="{{ $this->sedangDikerjakan }}"
-            description="laporan aktif"
-            icon="o-clock"
-            class="bg-base-200"
-        />
-        <x-stat
-            title="Selesai Hari Ini"
-            value="{{ $this->selesaiHariIni }}"
-            description="{{ now()->translatedFormat('d F Y') }}"
-            icon="o-check-circle"
-            class="bg-base-200"
-        />
-        <x-stat
-            title="Total Teknisi"
-            value="{{ $this->totalTeknisi }}"
-            description="teknisi terdaftar"
-            icon="o-users"
-            class="bg-base-200"
-        />
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+
+        @php
+            // Catatan: modifier opacity (mis. bg-primary/10) TIDAK ter-generate untuk warna
+            // tema DaisyUI di setup Tailwind v3 ini — hanya warna solid yang berfungsi.
+            // Karena itu chip ikon pakai warna solid + *-content. Kelas ditulis lengkap
+            // sebagai literal agar terdeteksi scanner Tailwind JIT.
+            $stats = [
+                ['label' => 'Total Laporan',     'value' => $this->totalLaporan,    'sub' => $this->laporan_ditugaskan . ' belum ditugaskan', 'icon' => 'o-document-text',      'chip' => 'bg-primary text-primary-content'],
+                ['label' => 'Sedang Dikerjakan', 'value' => $this->sedangDikerjakan, 'sub' => 'laporan aktif',                                 'icon' => 'o-wrench-screwdriver', 'chip' => 'bg-info text-info-content'],
+                ['label' => 'Selesai Hari Ini',  'value' => $this->selesaiHariIni,   'sub' => now()->translatedFormat('d F Y'),                'icon' => 'o-check-circle',       'chip' => 'bg-success text-success-content'],
+                ['label' => 'Total Teknisi',     'value' => $this->totalTeknisi,     'sub' => 'teknisi terdaftar',                             'icon' => 'o-user-group',         'chip' => 'bg-secondary text-secondary-content'],
+            ];
+        @endphp
+
+        @foreach($stats as $stat)
+            <div class="bg-base-100 rounded-xl p-5 border border-base-200 hover:border-base-300 hover:shadow-sm transition">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-xs font-medium text-base-content/50">{{ $stat['label'] }}</p>
+                        <p class="text-2xl font-semibold text-base-content mt-1.5">{{ $stat['value'] }}</p>
+                        <p class="text-xs text-base-content/40 mt-1 truncate">{{ $stat['sub'] }}</p>
+                    </div>
+                    <div class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center {{ $stat['chip'] }}">
+                        <x-mary-icon name="{{ $stat['icon'] }}" class="w-5 h-5" />
+                    </div>
+                </div>
+            </div>
+        @endforeach
+
     </div>
 
     {{-- Peta + laporan terbaru --}}

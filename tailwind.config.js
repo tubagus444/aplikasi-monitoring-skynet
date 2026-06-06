@@ -14,14 +14,14 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Inter', ...defaultTheme.fontFamily.sans],
             },
         },
     },
 
     plugins: [forms, daisyui],
 
-    daisyui: {
-        themes: ['light'],
-    },
+    // Catatan: tema "skynet" & "skynet-dark" TIDAK didefinisikan di sini.
+    // DaisyUI v5 tidak membaca `daisyui.themes` dari tailwind.config.js (itu format v4).
+    // Sumber kebenaran tema ada di resources/css/app.css sebagai CSS variables --color-*.
 };

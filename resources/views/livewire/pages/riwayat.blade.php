@@ -4,9 +4,12 @@ use App\Models\DamageReport;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    use WithPagination;
+
     public string $search = '';
     public string $filterPeriod = '';
 
@@ -30,7 +33,7 @@ new #[Layout('layouts.app')] class extends Component
                   ->whereYear('updated_at', now()->year)
             )
             ->latest('updated_at')
-            ->get();
+            ->paginate(10);
     }
 
     #[Computed]
@@ -52,8 +55,8 @@ new #[Layout('layouts.app')] class extends Component
         $this->showDetailModal = true;
     }
 
-    public function updatedSearch(): void { unset($this->riwayat); }
-    public function updatedFilterPeriod(): void { unset($this->riwayat); }
+    public function updatedSearch(): void { $this->resetPage(); unset($this->riwayat); }
+    public function updatedFilterPeriod(): void { $this->resetPage(); unset($this->riwayat); }
 }; ?>
 
 <div>
@@ -80,7 +83,7 @@ new #[Layout('layouts.app')] class extends Component
             @endforeach
         </div>
         <span class="text-xs text-base-content/40 self-center ml-auto">
-            {{ $this->riwayat->count() }} laporan selesai
+            {{ $this->riwayat->total() }} laporan selesai
         </span>
     </div>
 
@@ -147,6 +150,7 @@ new #[Layout('layouts.app')] class extends Component
                     </tbody>
                 </table>
             </div>
+            <x-mary-pagination :rows="$this->riwayat" class="mt-4" />
         @endif
     </x-mary-card>
 

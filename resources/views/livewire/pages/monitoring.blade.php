@@ -79,7 +79,7 @@ new #[Layout('layouts.app')] class extends Component
                         @foreach($technicianLocations as $tech)
                             <div
                                 wire:key="sidebar-{{ $tech['id'] }}"
-                                class="p-3 rounded-lg bg-base-200 hover:bg-base-300 cursor-pointer transition-colors"
+                                class="p-3 rounded-lg bg-base-100 border border-base-300 hover:border-primary/30 hover:bg-base-200/50 cursor-pointer transition-colors"
                                 x-on:click="$dispatch('focus-technician', { id: {{ $tech['id'] }} })"
                             >
                                 <div class="flex items-center justify-between mb-1">

@@ -1,3 +1,99 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Tema SkyNet — didefinisikan sebagai CSS variables DaisyUI v5.
+ *
+ * Kenapa di sini, bukan di tailwind.config.js?
+ * DaisyUI v5 TIDAK membaca `daisyui: { themes: [...] }` dari tailwind.config.js
+ * (itu konvensi DaisyUI v4 / butuh Tailwind v4 CSS-first config). Project ini
+ * pakai Tailwind v3, sehingga tema custom tak pernah ter-generate dan tombol
+ * toggle tema tidak menghasilkan perubahan warna. Mendefinisikan langsung sebagai
+ * custom property `--color-*` di sini independen dari versi & pasti bereaksi ke
+ * atribut data-theme pada <html>. Selector `html[data-theme=...]` (specificity
+ * lebih tinggi dari `:root` milik DaisyUI) memastikan tema ini menang.
+ */
+html[data-theme="skynet"] {
+    color-scheme: light;
+    --color-primary:           #2563EB;
+    --color-primary-content:   #FFFFFF;
+    --color-secondary:         #64748B;
+    --color-secondary-content: #FFFFFF;
+    --color-accent:            #0EA5E9;
+    --color-accent-content:    #FFFFFF;
+    --color-neutral:           #1E293B;
+    --color-neutral-content:   #F1F5F9;
+    --color-base-100:          #FFFFFF;
+    --color-base-200:          #F1F5F9;
+    --color-base-300:          #E2E8F0;
+    --color-base-content:      #0F172A;
+    --color-info:              #0EA5E9;
+    --color-info-content:      #FFFFFF;
+    --color-success:           #10B981;
+    --color-success-content:   #FFFFFF;
+    --color-warning:           #F59E0B;
+    --color-warning-content:   #FFFFFF;
+    --color-error:             #EF4444;
+    --color-error-content:     #FFFFFF;
+}
+
+html[data-theme="skynet-dark"] {
+    color-scheme: dark;
+    --color-primary:           #60A5FA;
+    --color-primary-content:   #1E3A5F;
+    --color-secondary:         #94A3B8;
+    --color-secondary-content: #1E293B;
+    --color-accent:            #38BDF8;
+    --color-accent-content:    #082F49;
+    --color-neutral:           #131F2E;
+    --color-neutral-content:   #CBD5E1;
+    --color-base-100:          #1E293B;
+    --color-base-200:          #111827;
+    --color-base-300:          #334155;
+    --color-base-content:      #E2E8F0;
+    --color-info:              #38BDF8;
+    --color-info-content:      #082F49;
+    --color-success:           #34D399;
+    --color-success-content:   #064E3B;
+    --color-warning:           #FBBF24;
+    --color-warning-content:   #451A03;
+    --color-error:             #F87171;
+    --color-error-content:     #450A0A;
+}
+
+@layer base {
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Sembunyikan elemen Alpine sampai komponen ter-init (cegah flash) */
+    [x-cloak] { display: none !important; }
+}
+
+@layer utilities {
+    /* Theme toggle icons: CSS-driven, bereaksi langsung ke data-theme pada <html> */
+    .theme-icon-sun { display: none; }
+    [data-theme="skynet-dark"] .theme-icon-moon { display: none; }
+    [data-theme="skynet-dark"] .theme-icon-sun  { display: inline; }
+
+    /* Light mode: active menu item = soft primary highlight */
+    [data-theme="skynet"] .menu li > *:where(a, button, span).active {
+        background-color: rgb(239 246 255); /* blue-50 */
+        color: rgb(37 99 235);              /* blue-600 = primary */
+    }
+
+    /* Dark mode: menu item text colors */
+    [data-theme="skynet-dark"] .menu li > *:where(a, button, span) {
+        color: rgb(148 163 184); /* slate-400 */
+    }
+    [data-theme="skynet-dark"] .menu li > *:where(a, button, span):hover {
+        background-color: rgba(255 255 255 / 0.06);
+        color: rgb(226 232 240); /* slate-200 */
+    }
+    [data-theme="skynet-dark"] .menu li > *:where(a, button, span).active {
+        background-color: rgba(96 165 250 / 0.12); /* primary/12 */
+        color: rgb(147 197 253);                    /* blue-300 */
+    }
+}

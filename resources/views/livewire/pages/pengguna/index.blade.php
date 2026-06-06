@@ -4,9 +4,13 @@ use App\Models\User;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
+use Mary\Traits\Toast;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    use WithPagination, Toast;
+
     // Filter & search
     public string $search = '';
     public string $filterRole = '';
@@ -36,7 +40,7 @@ new #[Layout('layouts.app')] class extends Component
             )
             ->orderBy('role')
             ->orderBy('name')
-            ->get();
+            ->paginate(10);
     }
 
     public function openCreate(): void
@@ -92,8 +96,10 @@ new #[Layout('layouts.app')] class extends Component
         }
 
         $this->showFormModal = false;
-        $this->resetForm();
         unset($this->users);
+        $this->success($this->editingId ? 'Data pengguna berhasil diperbarui.' : 'Pengguna baru berhasil ditambahkan.');
+        $this->resetForm();
+        $this->editingId = null;
     }
 
     public function confirmDelete(int $id): void
@@ -111,6 +117,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->showDeleteModal = false;
         $this->deletingId = null;
         unset($this->users);
+        $this->success('Pengguna berhasil dihapus.');
     }
 
     public function resetForm(): void
@@ -125,11 +132,13 @@ new #[Layout('layouts.app')] class extends Component
 
     public function updatedSearch(): void
     {
+        $this->resetPage();
         unset($this->users);
     }
 
     public function updatedFilterRole(): void
     {
+        $this->resetPage();
         unset($this->users);
     }
 }; ?>
@@ -236,6 +245,7 @@ new #[Layout('layouts.app')] class extends Component
                     </tbody>
                 </table>
             </div>
+            <x-mary-pagination :rows="$this->users" class="mt-4" />
         @endif
     </x-mary-card>
 

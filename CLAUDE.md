@@ -235,7 +235,28 @@ x-mary-pagination  x-mary-popover  x-mary-list-item
 x-select    x-textarea  x-stat      x-badge
 x-nav       x-main      x-table     x-tabs      x-tab
 x-avatar    x-alert     x-checkbox  x-toggle    x-radio
+x-toast
 ```
+> Catatan: `toast` TIDAK ada di daftar hardcoded `mary-*`, jadi tag-nya `x-toast`
+> (bukan `x-mary-toast` — itu memicu error "Unable to locate component"). Pasang
+> `<x-toast />` sekali di `layouts.app`, lalu panggil `$this->success('...')` /
+> `error()` / `warning()` dari komponen yang memakai trait `Mary\Traits\Toast`.
+
+### Warna Tema: Opacity Modifier Tidak Berfungsi
+
+Tema didefinisikan sebagai CSS variables DaisyUI v5 di `resources/css/app.css`. Karena
+`primary`/`secondary`/`info`/`success`/`warning`/`error` adalah utility **statis** DaisyUI
+(bukan warna terdaftar di palet Tailwind), modifier opacity TIDAK ter-generate:
+
+```
+❌ bg-primary/10   border-info/30   text-success/50    (transparan / tidak muncul)
+✅ bg-primary      text-primary-content    bg-base-200    (warna solid OK)
+✅ text-base-content/50    (hanya base-content yang dukung opacity, via color-mix)
+```
+
+Untuk aksen "soft" pakai warna solid (`bg-primary text-primary-content`) atau latar netral
+(`bg-base-200`) + ikon berwarna (`text-primary`). Tulis kelas warna sebagai **literal lengkap**
+(jangan dirangkai `bg-{{ $c }}/10`) agar terdeteksi scanner Tailwind JIT.
 
 ### Pola Volt Component (Livewire Volt)
 
