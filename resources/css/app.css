@@ -1,3 +1,133 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/*
+ * Sumber kelas untuk scanner Tailwind v4.
+ * resources/views terdeteksi otomatis, tapi folder vendor di-.gitignore sehingga
+ * harus didaftarkan manual (komponen Mary UI + view paginasi Laravel).
+ */
+@source "../../vendor/robsontenorio/mary/src/**/*.php";
+@source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
+
+/*
+ * strategy: class → forms plugin TIDAK lagi me-reset semua <input> secara global.
+ * Tanpa ini, reset border/ring bawaan forms bertabrakan dengan border .input DaisyUI
+ * sehingga input tampak dobel-border / boxy. DaisyUI yang pegang styling form.
+ */
+@plugin "@tailwindcss/forms" {
+    strategy: class;
+}
+
+/* DaisyUI v5: matikan tema bawaan, pakai tema SkyNet custom di bawah. */
+@plugin "daisyui" {
+    themes: false;
+}
+
+/*
+ * Tema SkyNet — didefinisikan via @plugin "daisyui/theme" (cara resmi DaisyUI v5
+ * + Tailwind v4). Karena warna terdaftar sebagai tema DaisyUI yang sesungguhnya,
+ * opacity modifier (mis. bg-primary/10, border-info/30) kini ter-generate normal
+ * via color-mix — beda dengan setup v3 lama yang memaksa warna solid saja.
+ */
+@plugin "daisyui/theme" {
+    name: "skynet";
+    default: true;
+    color-scheme: light;
+    --color-primary:           #2563EB;
+    --color-primary-content:   #FFFFFF;
+    --color-secondary:         #64748B;
+    --color-secondary-content: #FFFFFF;
+    --color-accent:            #0EA5E9;
+    --color-accent-content:    #FFFFFF;
+    --color-neutral:           #1E293B;
+    --color-neutral-content:   #F1F5F9;
+    --color-base-100:          #FFFFFF;
+    --color-base-200:          #F1F5F9;
+    --color-base-300:          #E2E8F0;
+    --color-base-content:      #0F172A;
+    --color-info:              #0EA5E9;
+    --color-info-content:      #FFFFFF;
+    --color-success:           #10B981;
+    --color-success-content:   #FFFFFF;
+    --color-warning:           #F59E0B;
+    --color-warning-content:   #FFFFFF;
+    --color-error:             #EF4444;
+    --color-error-content:     #FFFFFF;
+}
+
+@plugin "daisyui/theme" {
+    name: "skynet-dark";
+    color-scheme: dark;
+    --color-primary:           #60A5FA;
+    --color-primary-content:   #1E3A5F;
+    --color-secondary:         #94A3B8;
+    --color-secondary-content: #1E293B;
+    --color-accent:            #38BDF8;
+    --color-accent-content:    #082F49;
+    --color-neutral:           #131F2E;
+    --color-neutral-content:   #CBD5E1;
+    --color-base-100:          #1E293B;
+    --color-base-200:          #111827;
+    --color-base-300:          #334155;
+    --color-base-content:      #E2E8F0;
+    --color-info:              #38BDF8;
+    --color-info-content:      #082F49;
+    --color-success:           #34D399;
+    --color-success-content:   #064E3B;
+    --color-warning:           #FBBF24;
+    --color-warning-content:   #451A03;
+    --color-error:             #F87171;
+    --color-error-content:     #450A0A;
+}
+
+/* Font default aplikasi. */
+@theme {
+    --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/*
+ * Sembunyikan scrollbar tapi tetap bisa di-scroll (dipakai pada wrapper tabel
+ * yang overflow-x beberapa px di desktop — bar-nya mengganggu, scroll mobile tetap jalan).
+ */
+@utility no-scrollbar {
+    &::-webkit-scrollbar { display: none; }
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+@layer base {
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Sembunyikan elemen Alpine sampai komponen ter-init (cegah flash) */
+    [x-cloak] { display: none !important; }
+}
+
+@layer utilities {
+    /* Theme toggle icons: CSS-driven, bereaksi langsung ke data-theme pada <html> */
+    .theme-icon-sun { display: none; }
+    [data-theme="skynet-dark"] .theme-icon-moon { display: none; }
+    [data-theme="skynet-dark"] .theme-icon-sun  { display: inline; }
+
+    /* Light mode: active menu item = soft primary highlight */
+    [data-theme="skynet"] .menu li > *:where(a, button, span).active {
+        background-color: rgb(239 246 255); /* blue-50 */
+        color: rgb(37 99 235);              /* blue-600 = primary */
+    }
+
+    /* Dark mode: menu item text colors */
+    [data-theme="skynet-dark"] .menu li > *:where(a, button, span) {
+        color: rgb(148 163 184); /* slate-400 */
+    }
+    [data-theme="skynet-dark"] .menu li > *:where(a, button, span):hover {
+        background-color: rgba(255 255 255 / 0.06);
+        color: rgb(226 232 240); /* slate-200 */
+    }
+    [data-theme="skynet-dark"] .menu li > *:where(a, button, span).active {
+        background-color: rgba(96 165 250 / 0.12); /* primary/12 */
+        color: rgb(147 197 253);                    /* blue-300 */
+    }
+}

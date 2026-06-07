@@ -51,9 +51,12 @@ new #[Layout('layouts.app')] class extends Component
 }; ?>
 
 <div wire:poll.10s="loadLocations">
-    <x-mary-header title="Monitoring GPS" separator class="!mb-6">
+    <x-mary-header title="Monitoring GPS" separator class="mb-6!">
         <x-slot:actions>
-            <x-badge value="Live" class="badge-info" />
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-info/15 text-info">
+                <span class="w-1.5 h-1.5 rounded-full bg-info animate-pulse"></span>
+                Live
+            </span>
             <span class="text-xs text-base-content/40 hidden sm:inline">Refresh tiap 10 detik</span>
         </x-slot:actions>
     </x-mary-header>
@@ -62,10 +65,12 @@ new #[Layout('layouts.app')] class extends Component
 
         {{-- Sidebar: daftar teknisi aktif --}}
         <div class="lg:col-span-1">
-            <x-mary-card class="h-full">
+            <x-mary-card class="h-full rounded-2xl">
                 <div class="flex items-center justify-between mb-4">
                     <p class="text-sm font-semibold">Teknisi Aktif</p>
-                    <x-badge value="{{ count($technicianLocations) }}" class="badge-primary badge-sm" />
+                    <span class="inline-flex items-center justify-center min-w-6 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/15 text-primary">
+                        {{ count($technicianLocations) }}
+                    </span>
                 </div>
 
                 @if(count($technicianLocations) === 0)
@@ -79,7 +84,7 @@ new #[Layout('layouts.app')] class extends Component
                         @foreach($technicianLocations as $tech)
                             <div
                                 wire:key="sidebar-{{ $tech['id'] }}"
-                                class="p-3 rounded-lg bg-base-200 hover:bg-base-300 cursor-pointer transition-colors"
+                                class="p-3 rounded-xl bg-base-100 border border-base-300 hover:border-primary/30 hover:bg-base-200/50 cursor-pointer transition-colors"
                                 x-on:click="$dispatch('focus-technician', { id: {{ $tech['id'] }} })"
                             >
                                 <div class="flex items-center justify-between mb-1">
@@ -107,7 +112,7 @@ new #[Layout('layouts.app')] class extends Component
 
         {{-- Peta --}}
         <div wire:ignore class="lg:col-span-2">
-            <x-mary-card class="!p-0 overflow-hidden">
+            <x-mary-card class="p-0! overflow-hidden rounded-2xl">
                 <div id="monitoring-map" style="height:520px;width:100%;"></div>
             </x-mary-card>
         </div>

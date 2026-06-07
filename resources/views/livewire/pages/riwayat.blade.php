@@ -4,9 +4,12 @@ use App\Models\DamageReport;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    use WithPagination;
+
     public string $search = '';
     public string $filterPeriod = '';
 
@@ -30,7 +33,7 @@ new #[Layout('layouts.app')] class extends Component
                   ->whereYear('updated_at', now()->year)
             )
             ->latest('updated_at')
-            ->get();
+            ->paginate(10);
     }
 
     #[Computed]
@@ -52,27 +55,27 @@ new #[Layout('layouts.app')] class extends Component
         $this->showDetailModal = true;
     }
 
-    public function updatedSearch(): void { unset($this->riwayat); }
-    public function updatedFilterPeriod(): void { unset($this->riwayat); }
+    public function updatedSearch(): void { $this->resetPage(); unset($this->riwayat); }
+    public function updatedFilterPeriod(): void { $this->resetPage(); unset($this->riwayat); }
 }; ?>
 
 <div>
-    <x-mary-header title="Riwayat Pekerjaan" separator class="!mb-6" />
+    <x-mary-header title="Riwayat Pekerjaan" separator class="mb-6!" />
 
     {{-- Filter & Search --}}
-    <div class="flex flex-wrap gap-3 mb-4">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
         <x-mary-input
             wire:model.live.debounce="search"
             placeholder="Cari pelanggan atau alamat..."
             icon="o-magnifying-glass"
-            class="input-sm w-56"
+            class="input-sm w-56 rounded-full"
         />
-        <div class="flex gap-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
             @foreach (['' => 'Semua', 'minggu' => 'Minggu Ini', 'bulan' => 'Bulan Ini'] as $val => $label)
                 <button
                     wire:click="$set('filterPeriod', '{{ $val }}')"
                     @class([
-                        'btn btn-xs rounded-full',
+                        'btn btn-sm rounded-full',
                         'btn-primary' => $filterPeriod === $val,
                         'btn-ghost border border-base-300' => $filterPeriod !== $val,
                     ])
@@ -80,19 +83,19 @@ new #[Layout('layouts.app')] class extends Component
             @endforeach
         </div>
         <span class="text-xs text-base-content/40 self-center ml-auto">
-            {{ $this->riwayat->count() }} laporan selesai
+            {{ $this->riwayat->total() }} laporan selesai
         </span>
     </div>
 
     {{-- Tabel --}}
-    <x-mary-card>
+    <x-mary-card class="rounded-2xl">
         @if($this->riwayat->isEmpty())
             <div class="text-center py-12 text-base-content/40">
                 <x-mary-icon name="o-clock" class="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p class="text-sm">Belum ada laporan selesai</p>
             </div>
         @else
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto no-scrollbar">
                 <table class="table table-sm w-full">
                     <thead>
                         <tr class="text-xs text-base-content/50 uppercase">
@@ -147,6 +150,7 @@ new #[Layout('layouts.app')] class extends Component
                     </tbody>
                 </table>
             </div>
+            <x-mary-pagination :rows="$this->riwayat" class="mt-4" />
         @endif
     </x-mary-card>
 
