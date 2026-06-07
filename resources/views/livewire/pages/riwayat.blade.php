@@ -20,19 +20,7 @@ new #[Layout('layouts.app')] class extends Component
     public function riwayat()
     {
         return DamageReport::with(['damageType', 'taskAssignments.technician'])
-            ->where('status', 'selesai')
-            ->when($this->search, fn($q) =>
-                $q->where('customer_name', 'like', "%{$this->search}%")
-                  ->orWhere('address', 'like', "%{$this->search}%")
-            )
-            ->when($this->filterPeriod === 'minggu', fn($q) =>
-                $q->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
-            )
-            ->when($this->filterPeriod === 'bulan', fn($q) =>
-                $q->whereMonth('updated_at', now()->month)
-                  ->whereYear('updated_at', now()->year)
-            )
-            ->latest('updated_at')
+            ->riwayatSelesai($this->search, $this->filterPeriod)
             ->paginate(10);
     }
 
@@ -60,7 +48,33 @@ new #[Layout('layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <x-mary-header title="Riwayat Pekerjaan" separator class="mb-6!" />
+    <x-mary-header title="Riwayat Pekerjaan" separator class="mb-6!">
+        <x-slot:actions>
+            <x-dropdown label="Ekspor PDF" icon="o-document-arrow-down" class="btn-primary btn-sm rounded-full" right>
+                <li>
+                    <a
+                        href="{{ route('history.export', ['mode' => 'ringkasan', 'search' => $search, 'period' => $filterPeriod]) }}"
+                        target="_blank"
+                        class="flex items-center gap-2"
+                    >
+                        <x-mary-icon name="o-table-cells" class="w-4 h-4" /> Ringkasan
+                    </a>
+                </li>
+                <li>
+                    <a
+                        href="{{ route('history.export', ['mode' => 'lengkap', 'search' => $search, 'period' => $filterPeriod]) }}"
+                        target="_blank"
+                        class="flex items-center gap-2"
+                        @if($this->riwayat->total() > 30)
+                            onclick="return confirm('Data cukup banyak ({{ $this->riwayat->total() }} laporan). Dokumen mode Lengkap bisa sangat panjang. Lanjutkan?')"
+                        @endif
+                    >
+                        <x-mary-icon name="o-document-text" class="w-4 h-4" /> Lengkap
+                    </a>
+                </li>
+            </x-dropdown>
+        </x-slot:actions>
+    </x-mary-header>
 
     {{-- Filter & Search --}}
     <div class="flex flex-wrap items-center gap-3 mb-4">

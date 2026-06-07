@@ -14,6 +14,7 @@ Aplikasi web admin + Android untuk monitoring perbaikan jaringan. Studi kasus sk
 | Peta | Leaflet.js + OpenStreetMap |
 | Auth API | Laravel Sanctum (token-based, untuk Android) |
 | Push Notification | Firebase FCM (`kreait/laravel-firebase v7`) |
+| Ekspor PDF | `barryvdh/laravel-dompdf` (dompdf) |
 | Database | MySQL via Laragon |
 | Mobile | Android (Kotlin) — repo terpisah |
 | Dev Environment | Laragon (Windows) |
@@ -91,7 +92,7 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 1. Dashboard — stat cards data nyata + laporan terbaru
 2. Manajemen Laporan — full CRUD + filter + search + assign teknisi
 3. Monitoring GPS — Leaflet.js realtime, polling 10 detik
-4. Riwayat — laporan selesai + filter periode + detail modal
+4. Riwayat — laporan selesai + filter periode + detail modal + **ekspor PDF** (mode ringkasan & lengkap)
 5. Pengguna — full CRUD admin & teknisi
 
 ### Layar Android Teknisi (direncanakan 6 layar)
@@ -109,12 +110,14 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 app/
   Http/Controllers/Api/ # AuthController, TaskController,
                         # LocationController, NotificationController
+  Http/Controllers/     # ReportExportController (ekspor PDF — web, bukan Volt)
   Models/               # DamageReport, DamageType, TaskAssignment,
                         # WorkLog, LocationLog, Notification, User
+                        # DamageReport: scope riwayatSelesai($search,$period)
   Observers/
     NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
-  web.php               # Volt routes (admin panel)
+  web.php               # Volt routes (admin panel) + history/export
   api.php               # 8 API endpoints (Android via Sanctum)
 resources/views/livewire/pages/
   dashboard.blade.php
@@ -122,6 +125,8 @@ resources/views/livewire/pages/
   monitoring.blade.php
   riwayat.blade.php
   pengguna/index.blade.php
+resources/views/pdf/    # Template dompdf: layout, riwayat-ringkasan,
+                        # riwayat-lengkap (CSS inline, font DejaVu Sans)
 database/
   migrations/           # Semua migrasi tabel
   seeders/              # Seeder untuk semua tabel utama
@@ -137,7 +142,12 @@ tests/
 
 > Semua endpoint sudah diimplementasi.
 
-### Web Admin — session-based auth (18 routes)
+### Web Admin — session-based auth
+
+> Halaman admin = Volt component; aksi CRUD (simpan/edit/hapus/assign) dijalankan sebagai
+> **Livewire action di dalam component**, bukan route HTTP REST terpisah. Tabel di bawah
+> mendeskripsikan operasi secara konseptual; route HTTP riil yang terdaftar hanyalah halaman
+> Volt + `history/export` + autentikasi (lihat `routes/web.php`).
 
 **Autentikasi**
 | Method | Path | Keterangan |
@@ -177,6 +187,12 @@ tests/
 | PUT | `/users/{id}` | Edit data pengguna |
 | DELETE | `/users/{id}` | Hapus pengguna |
 
+**Riwayat & Ekspor** _(route HTTP riil)_
+| Method | Path | Keterangan |
+|---|---|---|
+| GET | `/history` | Daftar laporan selesai + filter periode + detail modal |
+| GET | `/history/export` | Ekspor PDF riwayat. Query: `mode` (`ringkasan`\|`lengkap`), `search`, `period` (`minggu`\|`bulan`). Mengikuti filter aktif, dibuka inline di tab baru |
+
 ---
 
 ### API Android — token-based auth via Sanctum (prefix `/api`)
@@ -214,6 +230,9 @@ tests/
 - FCM push notification dikirim otomatis via `NotificationObserver` setiap kali `Notification::create()` dipanggil — tidak perlu memanggil FCM manual di tempat lain
 - `FIREBASE_CREDENTIALS` di `.env` wajib diisi path ke service account JSON Firebase (file JSON tidak boleh di-commit ke git, sudah ada di `.gitignore`)
 - Halaman interaktif dibuat sebagai Livewire Volt component (bukan controller biasa)
+- Response non-interaktif (ekspor PDF / download file) memakai **controller biasa** di
+  `app/Http/Controllers/` (mis. `ReportExportController`), BUKAN Volt — Volt khusus halaman
+  interaktif. Lihat subbagian "Ekspor PDF (dompdf)" di bawah
 - API untuk Android menggunakan prefix `/api` dengan auth `sanctum`
 - Role middleware ada di `app/Http/Middleware/RoleMiddleware.php`
 - Gunakan `composer dev` untuk menjalankan semua service, bukan `php artisan serve` saja
@@ -343,6 +362,26 @@ new #[Layout('layouts.app')] class extends Component {
 - View disimpan di `resources/views/livewire/pages/`
 - Layout wrapper: `layouts.app` (sidebar + topbar mobile)
 - Computed properties pakai attribute `#[Computed]` + `unset($this->propertyName)` untuk invalidasi cache
+
+### Ekspor PDF (barryvdh/laravel-dompdf)
+
+Halaman Riwayat bisa diekspor ke PDF (laporan cetak ber-kop). Pola wajib saat menambah ekspor:
+
+- Endpoint = **controller biasa** (`ReportExportController@riwayat`, route `history/export` di
+  grup `['auth','verified']`), BUKAN Volt — Volt tidak cocok untuk response file.
+- Template di `resources/views/pdf/`: `layout.blade.php` (kop teks + footer nomor halaman via
+  `counter(page)/counter(pages)`), `riwayat-ringkasan.blade.php` (A4 landscape, 1 baris/laporan),
+  `riwayat-lengkap.blade.php` (A4 portrait, per-laporan + timeline work logs, `page-break-inside: avoid`).
+- dompdf **tidak membaca Tailwind/asset Vite** → semua CSS ditulis **inline** di `<style>` template.
+  Pakai font `DejaVu Sans` (bawaan dompdf; aman untuk karakter Indonesia & en/em dash `– —`).
+- Set `\Carbon\Carbon::setLocale('id')` di controller sebelum `translatedFormat(...)` supaya nama
+  bulan/hari berbahasa Indonesia — locale app default `en`.
+- `$pdf->stream(...)` = tampil inline di tab baru (tombol pakai `target="_blank"`); pakai
+  `download()` bila ingin paksa unduh.
+- Filter dipusatkan di scope `DamageReport::scopeRiwayatSelesai($search, $period)` agar halaman Volt
+  (`riwayat.blade.php`) & controller ekspor memakai query yang sama (sumber kebenaran tunggal).
+- Tombol pakai `<x-dropdown>` (BUKAN `x-mary-dropdown` — `dropdown` tak ada di daftar hardcoded
+  `mary-*`); mode Lengkap memunculkan `confirm()` JS bila hasil > 30 laporan.
 
 ### Status Mapping API Android ↔ Database
 

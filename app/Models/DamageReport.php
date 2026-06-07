@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,6 +17,27 @@ class DamageReport extends Model
         'notes',
         'status',
     ];
+
+    /**
+     * Riwayat laporan yang sudah selesai, dengan filter pencarian & periode.
+     * Dipakai bersama oleh halaman Riwayat (Volt) dan ekspor PDF agar konsisten.
+     */
+    public function scopeRiwayatSelesai(Builder $query, ?string $search = null, ?string $period = null): Builder
+    {
+        return $query->where('status', 'selesai')
+            ->when($search, fn ($q) => $q->where(fn ($w) =>
+                $w->where('customer_name', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%")
+            ))
+            ->when($period === 'minggu', fn ($q) =>
+                $q->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
+            )
+            ->when($period === 'bulan', fn ($q) =>
+                $q->whereMonth('updated_at', now()->month)
+                  ->whereYear('updated_at', now()->year)
+            )
+            ->latest('updated_at');
+    }
 
     // Relasi
     public function creator()
