@@ -140,7 +140,7 @@ new #[Layout('layouts.app')] class extends Component
                                 <td>
                                     <x-mary-button
                                         icon="o-eye"
-                                        class="btn-ghost btn-xs"
+                                        class="btn-ghost btn-xs rounded-full"
                                         wire:click="openDetail({{ $report->id }})"
                                         tooltip="Lihat Detail"
                                     />
@@ -157,32 +157,70 @@ new #[Layout('layouts.app')] class extends Component
     {{-- Modal Detail --}}
     <x-mary-modal wire:model="showDetailModal" title="Detail Laporan" separator box-class="max-w-lg">
         @if($this->detailReport)
-            @php $report = $this->detailReport; @endphp
+            @php
+                $report = $this->detailReport;
+                $durasi = $report->created_at->diff($report->updated_at);
+                $durasiText = $durasi->days > 0
+                    ? $durasi->days . ' hari'
+                    : ($durasi->h > 0 ? $durasi->h . ' jam' : $durasi->i . ' menit');
+            @endphp
 
-            {{-- Info laporan --}}
-            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-4">
-                <div>
-                    <p class="text-xs text-base-content/50 uppercase mb-0.5">Pelanggan</p>
-                    <p class="font-medium">{{ $report->customer_name }}</p>
+            {{-- Header ringkas: identitas laporan + status --}}
+            <div class="flex items-start justify-between gap-3 mb-5">
+                <div class="min-w-0">
+                    <p class="text-xs text-base-content/40">Laporan #{{ $report->id }}</p>
+                    <h3 class="text-lg font-bold text-base-content truncate">{{ $report->customer_name }}</h3>
+                    <p class="text-sm text-base-content/60">{{ $report->damageType->name }}</p>
                 </div>
-                <div>
-                    <p class="text-xs text-base-content/50 uppercase mb-0.5">Jenis Gangguan</p>
-                    <p>{{ $report->damageType->name }}</p>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 bg-success/15 text-success">
+                    <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
+                    Selesai
+                </span>
+            </div>
+
+            {{-- Chip ringkas: waktu selesai & durasi penanganan --}}
+            <div class="grid grid-cols-2 gap-3 mb-5">
+                <div class="rounded-xl bg-base-200/60 p-3">
+                    <div class="flex items-center gap-1.5 text-base-content/40 mb-1">
+                        <x-mary-icon name="o-check-circle" class="w-3.5 h-3.5" />
+                        <p class="text-xs">Waktu Selesai</p>
+                    </div>
+                    <p class="text-sm font-semibold">{{ $report->updated_at->format('d/m/Y H:i') }}</p>
                 </div>
-                <div class="col-span-2">
-                    <p class="text-xs text-base-content/50 uppercase mb-0.5">Alamat</p>
-                    <p>{{ $report->address }}</p>
+                <div class="rounded-xl bg-base-200/60 p-3">
+                    <div class="flex items-center gap-1.5 text-base-content/40 mb-1">
+                        <x-mary-icon name="o-clock" class="w-3.5 h-3.5" />
+                        <p class="text-xs">Durasi Penanganan</p>
+                    </div>
+                    <p class="text-sm font-semibold">{{ $durasiText }}</p>
+                </div>
+            </div>
+
+            {{-- Info detail beralur ikon --}}
+            <div class="space-y-3 text-sm mb-5">
+                <div class="flex gap-3">
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-base-content/40 shrink-0 mt-0.5" />
+                    <div class="min-w-0">
+                        <p class="text-xs text-base-content/40">Alamat</p>
+                        <p>{{ $report->address }}</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <x-mary-icon name="o-users" class="w-4 h-4 text-base-content/40 shrink-0 mt-0.5" />
+                    <div class="min-w-0">
+                        <p class="text-xs text-base-content/40">Teknisi</p>
+                        <p>{{ $report->taskAssignments->pluck('technician.name')->join(', ') ?: '—' }}</p>
+                    </div>
                 </div>
                 @if($report->notes)
-                    <div class="col-span-2">
-                        <p class="text-xs text-base-content/50 uppercase mb-0.5">Keterangan</p>
-                        <p class="text-base-content/70">{{ $report->notes }}</p>
+                    <div class="flex gap-3">
+                        <x-mary-icon name="o-document-text" class="w-4 h-4 text-base-content/40 shrink-0 mt-0.5" />
+                        <div class="min-w-0">
+                            <p class="text-xs text-base-content/40">Keterangan</p>
+                            <p class="text-base-content/70">{{ $report->notes }}</p>
+                        </div>
                     </div>
                 @endif
-                <div class="col-span-2">
-                    <p class="text-xs text-base-content/50 uppercase mb-0.5">Teknisi</p>
-                    <p>{{ $report->taskAssignments->pluck('technician.name')->join(', ') ?: '—' }}</p>
-                </div>
             </div>
 
             {{-- Timeline work_logs --}}
@@ -229,7 +267,7 @@ new #[Layout('layouts.app')] class extends Component
         @endif
 
         <x-slot:actions>
-            <x-mary-button label="Tutup" class="btn-ghost" wire:click="$set('showDetailModal', false)" />
+            <x-mary-button label="Tutup" class="btn-ghost rounded-full" wire:click="$set('showDetailModal', false)" />
         </x-slot:actions>
     </x-mary-modal>
 </div>

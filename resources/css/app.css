@@ -130,4 +130,22 @@
         background-color: rgba(96 165 250 / 0.12); /* primary/12 */
         color: rgb(147 197 253);                    /* blue-300 */
     }
+
+    /*
+     * Focus state form: DaisyUI default men-set --input-color = base-content (≈ hitam)
+     * lalu outline 2px solid + offset 2px → kotak hitam kasar saat input difokus.
+     * Ganti jadi ring primary lembut (35% via color-mix) yang menempel rapi —
+     * fokus tetap terlihat (aksesibilitas keyboard) tapi tampilan bersih & on-brand.
+     * Berada di @layer utilities → menang atas aturan .input:focus milik DaisyUI (layer components).
+     */
+    .input:focus,
+    .input:focus-within,
+    .select:focus,
+    .select:focus-within,
+    .textarea:focus,
+    .textarea:focus-within {
+        --input-color: var(--color-primary);
+        outline: 2px solid color-mix(in oklab, var(--color-primary) 35%, transparent);
+        outline-offset: 1px;
+    }
 }

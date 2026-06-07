@@ -233,13 +233,13 @@ new #[Layout('layouts.app')] class extends Component
                                     <div class="flex gap-1">
                                         <x-mary-button
                                             icon="o-pencil"
-                                            class="btn-ghost btn-xs"
+                                            class="btn-ghost btn-xs rounded-full"
                                             wire:click="openEdit({{ $user->id }})"
                                             tooltip="Edit"
                                         />
                                         <x-mary-button
                                             icon="o-trash"
-                                            class="btn-ghost btn-xs {{ $user->id === auth()->id() ? 'opacity-20 cursor-not-allowed' : 'text-error' }}"
+                                            class="btn-ghost btn-xs rounded-full {{ $user->id === auth()->id() ? 'opacity-20 cursor-not-allowed' : 'text-error' }}"
                                             wire:click="confirmDelete({{ $user->id }})"
                                             tooltip="{{ $user->id === auth()->id() ? 'Tidak bisa hapus akun sendiri' : 'Hapus' }}"
                                             :disabled="$user->id === auth()->id()"
@@ -262,6 +262,7 @@ new #[Layout('layouts.app')] class extends Component
                 label="Nama Lengkap"
                 wire:model="name"
                 placeholder="Budi Santoso"
+                icon="o-user"
                 required
             />
             <x-mary-input
@@ -269,20 +270,34 @@ new #[Layout('layouts.app')] class extends Component
                 wire:model="email"
                 type="email"
                 placeholder="budi@skynet.id"
+                icon="o-envelope"
                 required
             />
         </div>
 
         <div class="mt-4">
             <label class="block text-sm font-medium text-base-content/70 mb-2">Role</label>
-            <div class="flex gap-4">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" wire:model="role" value="teknisi" class="radio radio-sm radio-primary" />
-                    <span class="text-sm">Teknisi</span>
+            {{-- Kartu pilihan role: has-checked me-highlight kartu via CSS murni --}}
+            <div class="grid grid-cols-2 gap-3">
+                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-base-300 hover:bg-base-200/60 transition-colors has-checked:border-primary has-checked:bg-primary/5">
+                    <input type="radio" wire:model="role" value="teknisi" class="radio radio-sm radio-primary shrink-0" />
+                    <div class="flex items-center gap-2 min-w-0">
+                        <x-mary-icon name="o-wrench-screwdriver" class="w-5 h-5 text-secondary shrink-0" />
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium leading-tight">Teknisi</p>
+                            <p class="text-xs text-base-content/50 leading-tight">Akses aplikasi lapangan</p>
+                        </div>
+                    </div>
                 </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" wire:model="role" value="admin" class="radio radio-sm radio-primary" />
-                    <span class="text-sm">Admin</span>
+                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-base-300 hover:bg-base-200/60 transition-colors has-checked:border-primary has-checked:bg-primary/5">
+                    <input type="radio" wire:model="role" value="admin" class="radio radio-sm radio-primary shrink-0" />
+                    <div class="flex items-center gap-2 min-w-0">
+                        <x-mary-icon name="o-shield-check" class="w-5 h-5 text-primary shrink-0" />
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium leading-tight">Admin</p>
+                            <p class="text-xs text-base-content/50 leading-tight">Akses penuh panel web</p>
+                        </div>
+                    </div>
                 </label>
             </div>
         </div>
@@ -293,6 +308,7 @@ new #[Layout('layouts.app')] class extends Component
                 wire:model="password"
                 type="password"
                 placeholder="{{ $editingId ? 'Kosongkan jika tidak diubah' : 'Minimal 8 karakter' }}"
+                icon="o-lock-closed"
                 :required="!$editingId"
             />
             <x-mary-input
@@ -300,15 +316,16 @@ new #[Layout('layouts.app')] class extends Component
                 wire:model="password_confirmation"
                 type="password"
                 placeholder="Ulangi password"
+                icon="o-lock-closed"
                 :required="!$editingId"
             />
         </div>
 
         <x-slot:actions>
-            <x-mary-button label="Batal" class="btn-ghost" wire:click="$set('showFormModal', false)" />
+            <x-mary-button label="Batal" class="btn-ghost rounded-full" wire:click="$set('showFormModal', false)" />
             <x-mary-button
                 :label="$editingId ? 'Simpan Perubahan' : 'Tambah Pengguna'"
-                class="btn-primary"
+                class="btn-primary rounded-full"
                 wire:click="save"
                 spinner="save"
             />
@@ -326,8 +343,8 @@ new #[Layout('layouts.app')] class extends Component
         </p>
 
         <x-slot:actions>
-            <x-mary-button label="Batal" class="btn-ghost" wire:click="$set('showDeleteModal', false)" />
-            <x-mary-button label="Ya, Hapus" class="btn-error" wire:click="deleteUser" spinner="deleteUser" />
+            <x-mary-button label="Batal" class="btn-ghost rounded-full" wire:click="$set('showDeleteModal', false)" />
+            <x-mary-button label="Ya, Hapus" class="btn-error rounded-full" wire:click="deleteUser" spinner="deleteUser" />
         </x-slot:actions>
     </x-mary-modal>
 </div>

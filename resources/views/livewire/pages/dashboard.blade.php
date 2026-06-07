@@ -37,6 +37,14 @@ new #[Layout('layouts.app')] class extends Component
     }
 
     #[Computed]
+    public function selesaiKemarin(): int
+    {
+        return DamageReport::where('status', 'selesai')
+            ->whereDate('updated_at', today()->subDay())
+            ->count();
+    }
+
+    #[Computed]
     public function totalTeknisi(): int
     {
         return User::where('role', 'teknisi')->count();
@@ -90,7 +98,7 @@ new #[Layout('layouts.app')] class extends Component
 <div>
     <x-mary-header title="Dashboard" separator class="mb-6!">
         <x-slot:actions>
-            <x-mary-button icon="o-arrow-path" class="btn-ghost btn-sm" label="Refresh" wire:click="$refresh" />
+            <x-mary-button icon="o-arrow-path" class="btn-ghost btn-sm rounded-full" label="Refresh" wire:click="$refresh" />
         </x-slot:actions>
     </x-mary-header>
 
@@ -103,7 +111,7 @@ new #[Layout('layouts.app')] class extends Component
             $stats = [
                 ['label' => 'Total Laporan',     'value' => $this->totalLaporan,    'sub' => $this->laporan_ditugaskan . ' belum ditugaskan', 'icon' => 'o-document-text',      'chip' => 'bg-primary text-primary-content'],
                 ['label' => 'Sedang Dikerjakan', 'value' => $this->sedangDikerjakan, 'sub' => 'laporan aktif',                                 'icon' => 'o-wrench-screwdriver', 'chip' => 'bg-info text-info-content'],
-                ['label' => 'Selesai Hari Ini',  'value' => $this->selesaiHariIni,   'sub' => now()->translatedFormat('d F Y'),                'icon' => 'o-check-circle',       'chip' => 'bg-success text-success-content'],
+                ['label' => 'Selesai Hari Ini',  'value' => $this->selesaiHariIni,   'sub' => 'kemarin: ' . $this->selesaiKemarin,            'icon' => 'o-check-circle',       'chip' => 'bg-success text-success-content'],
                 ['label' => 'Total Teknisi',     'value' => $this->totalTeknisi,     'sub' => 'teknisi terdaftar',                             'icon' => 'o-user-group',         'chip' => 'bg-secondary text-secondary-content'],
             ];
         @endphp
@@ -135,15 +143,16 @@ new #[Layout('layouts.app')] class extends Component
                     {{ count($this->mapLocations) }} aktif
                 </span>
             </x-slot:menu>
-            <div wire:ignore>
+            {{-- Tinggi tetap (h-96 / 384px): peta = elemen utama, ukurannya disengaja & konsisten, lepas dari tinggi card sebelah --}}
+            <div wire:ignore class="h-96">
                 @if(count($this->mapLocations) === 0)
-                    <div id="dashboard-map-placeholder" class="bg-base-200 rounded-xl flex flex-col items-center justify-center gap-2 border border-dashed border-base-300" style="height:224px;">
+                    <div id="dashboard-map-placeholder" class="h-full bg-base-200 rounded-xl flex flex-col items-center justify-center gap-2 border border-dashed border-base-300">
                         <x-mary-icon name="o-map-pin" class="w-8 h-8 text-base-content/30" />
                         <p class="text-sm text-base-content/40">Tidak ada teknisi aktif</p>
                         <a href="{{ route('monitoring') }}" wire:navigate class="text-xs text-primary hover:underline">Buka halaman Monitoring →</a>
                     </div>
                 @else
-                    <div id="dashboard-map" class="rounded-xl overflow-hidden" style="height:224px;width:100%;"></div>
+                    <div id="dashboard-map" class="h-full rounded-xl overflow-hidden w-full"></div>
                 @endif
             </div>
         </x-mary-card>
@@ -157,29 +166,40 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="flex flex-col divide-y divide-base-200">
                     @foreach($this->laporanTerbaru as $report)
                         @php
-                            // Pil status: latar soft (opacity v4) + titik warna sebagai indikator.
-                            // Kelas ditulis literal lengkap agar terdeteksi scanner Tailwind.
                             $status = match($report->status) {
-                                'ditugaskan'         => ['pill' => 'bg-warning/15 text-warning', 'dot' => 'bg-warning',          'label' => 'Ditugaskan'],
-                                'sedang_memperbaiki' => ['pill' => 'bg-info/15 text-info',       'dot' => 'bg-info',             'label' => 'Memperbaiki'],
-                                'selesai'            => ['pill' => 'bg-success/15 text-success', 'dot' => 'bg-success',          'label' => 'Selesai'],
+                                'ditugaskan'         => ['pill' => 'bg-warning/15 text-warning', 'dot' => 'bg-warning',              'label' => 'Ditugaskan'],
+                                'sedang_memperbaiki' => ['pill' => 'bg-info/15 text-info',       'dot' => 'bg-info animate-pulse',   'label' => 'Memperbaiki'],
+                                'selesai'            => ['pill' => 'bg-success/15 text-success', 'dot' => 'bg-success',              'label' => 'Selesai'],
                                 default              => ['pill' => 'bg-base-200 text-base-content/60', 'dot' => 'bg-base-content/40', 'label' => $report->status],
                             };
+                            // Laporan belum selesai dan sudah >24 jam dianggap urgen
+                            $isUrgen = $report->status !== 'selesai' && $report->created_at->diffInHours(now()) > 24;
                         @endphp
-                        <div class="flex items-center justify-between py-2.5 gap-3">
-                            <div class="min-w-0">
-                                <p class="text-sm font-medium truncate">{{ $report->customer_name }}</p>
-                                <p class="text-xs text-base-content/50 truncate">{{ $report->damageType->name }} · {{ $report->created_at->diffForHumans() }}</p>
+                        <div class="flex items-center justify-between py-3 gap-3 {{ $isUrgen ? 'opacity-100' : '' }}">
+                            <div class="min-w-0 flex items-start gap-2">
+                                @if($isUrgen)
+                                    <span class="mt-0.5 shrink-0 w-1 h-full self-stretch min-h-8 rounded-full bg-error/60"></span>
+                                @endif
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-base-content truncate">{{ $report->customer_name }}</p>
+                                    <p class="text-xs font-medium text-base-content/60 truncate">{{ $report->damageType->name }}</p>
+                                    <p class="text-xs text-base-content/35 mt-0.5">{{ $report->created_at->diffForHumans() }}</p>
+                                </div>
                             </div>
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 {{ $status['pill'] }}">
-                                <span class="w-1.5 h-1.5 rounded-full {{ $status['dot'] }}"></span>
-                                {{ $status['label'] }}
-                            </span>
+                            <div class="shrink-0 flex flex-col items-end gap-1.5">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ $status['pill'] }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $status['dot'] }}"></span>
+                                    {{ $status['label'] }}
+                                </span>
+                                @if($isUrgen)
+                                    <span class="text-[10px] text-error/70 font-medium">Perlu perhatian</span>
+                                @endif
+                            </div>
                         </div>
                     @endforeach
                 </div>
                 <div class="mt-4">
-                    <a href="{{ route('reports.index') }}" wire:navigate class="btn btn-soft btn-primary btn-sm btn-block">
+                    <a href="{{ route('reports.index') }}" wire:navigate class="btn btn-soft btn-primary btn-sm btn-block rounded-full">
                         Lihat semua laporan
                         <x-mary-icon name="o-arrow-right" class="w-4 h-4" />
                     </a>

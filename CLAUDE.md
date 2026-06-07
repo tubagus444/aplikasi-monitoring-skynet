@@ -280,13 +280,24 @@ Komponen `<x-avatar>` placeholder DaisyUI 5 memakai kelas `avatar avatar-placeho
 (bukan `avatar placeholder` gaya v4 lama). Forms plugin dipasang `strategy: class` supaya
 tidak me-reset `<input>` global — styling form sepenuhnya dipegang DaisyUI (`.input`).
 
+**Focus state form di-override** (di `@layer utilities` pada `app.css`). DaisyUI default
+men-set `--input-color: base-content` (≈ hitam) lalu `outline: 2px solid + offset 2px` pada
+`.input/.select/.textarea` saat fokus → kotak hitam kasar. Override mengganti jadi ring
+`primary` lembut (`--input-color: var(--color-primary)` + `outline` via
+`color-mix(in oklab, var(--color-primary) 35%, transparent)`, `outline-offset: 1px`).
+Ditaruh di layer `utilities` agar menang atas aturan `.input:focus` milik DaisyUI (layer
+`components`). Berlaku global ke semua field — jangan kembalikan ke default DaisyUI.
+
 ### Bahasa Visual / Konvensi UI Panel Admin
 
 Semua halaman admin memakai konvensi tampilan seragam — ikuti saat membuat komponen baru:
 
-- **Search box & tombol aksi/filter** = pil → tambahkan `rounded-full`
-  (mis. `class="input-sm w-56 rounded-full"`, `class="btn-primary btn-sm rounded-full"`)
-- **Card** = `rounded-2xl` (stat card div & `<x-mary-card class="rounded-2xl">`)
+- **Semua tombol & search box** = pil → tambahkan `rounded-full`, TANPA kecuali: tombol
+  header, chip filter, search box, tombol ikon aksi tabel (`btn-xs`), dan tombol footer
+  modal (Batal/Simpan/Hapus/Tutup) (mis. `class="input-sm w-56 rounded-full"`,
+  `class="btn-primary btn-sm rounded-full"`, `class="btn-ghost btn-xs rounded-full"`)
+- **Card** = `rounded-2xl` (stat card div & `<x-mary-card class="rounded-2xl">`).
+  Kartu/kontainer di DALAM card atau modal (kartu pilihan, chip ringkas) = `rounded-xl`
 - **Indikator status / role / hitungan** = pil soft + titik warna (dot+pill), BUKAN `<x-badge>`:
 
 ```blade
@@ -300,6 +311,12 @@ Semua halaman admin memakai konvensi tampilan seragam — ikuti saat membuat kom
   `animate-pulse` pada titiknya. Tulis kelas warna sebagai literal lengkap (`bg-info/15`,
   `text-info`) di dalam `match()` agar terdeteksi scanner.
 - Wrapper tabel selalu `overflow-x-auto no-scrollbar`.
+- **Pilihan radio/checkbox bentuk kartu** (mis. pemilih teknisi di modal laporan, role di
+  modal pengguna): bungkus `<input>` dalam `<label>`, highlight via `has-checked:` (CSS murni,
+  instan tanpa round-trip Livewire) — `class="... border border-base-300 has-checked:border-primary
+  has-checked:bg-primary/5"`. Pakai `has-checked:` (kanonik v4), BUKAN `has-[:checked]:`.
+- **Input di modal** beri `icon="o-..."` kontekstual (nama=`o-user`, alamat=`o-map-pin`,
+  email=`o-envelope`, password=`o-lock-closed`, dll.) agar mudah dipindai.
 
 ### Pola Volt Component (Livewire Volt)
 

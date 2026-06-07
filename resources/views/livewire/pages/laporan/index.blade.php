@@ -276,13 +276,13 @@ new #[Layout('layouts.app')] class extends Component
                                     <div class="flex gap-1">
                                         <x-mary-button
                                             icon="o-pencil"
-                                            class="btn-ghost btn-xs"
+                                            class="btn-ghost btn-xs rounded-full"
                                             wire:click="openEdit({{ $report->id }})"
                                             tooltip="Edit"
                                         />
                                         <x-mary-button
                                             icon="o-trash"
-                                            class="btn-ghost btn-xs text-error"
+                                            class="btn-ghost btn-xs text-error rounded-full"
                                             wire:click="confirmDelete({{ $report->id }})"
                                             tooltip="Hapus"
                                         />
@@ -304,12 +304,14 @@ new #[Layout('layouts.app')] class extends Component
                 label="Nama Pelanggan"
                 wire:model="customer_name"
                 placeholder="Pak Budi Santoso"
+                icon="o-user"
                 required
             />
             <x-mary-input
                 label="Alamat"
                 wire:model="address"
                 placeholder="Jl. Melati No.4, RT 03/RW 05"
+                icon="o-map-pin"
                 required
             />
         </div>
@@ -322,6 +324,7 @@ new #[Layout('layouts.app')] class extends Component
                 option-value="id"
                 option-label="name"
                 placeholder="Pilih jenis gangguan..."
+                icon="o-wrench-screwdriver"
                 required
             />
         </div>
@@ -336,29 +339,49 @@ new #[Layout('layouts.app')] class extends Component
         </div>
 
         <div class="mt-4">
-            <label class="block text-sm font-medium text-base-content/70 mb-2">
-                Tugaskan Teknisi <span class="text-base-content/40 font-normal">(opsional)</span>
-            </label>
-            <div class="flex flex-col gap-2">
-                @foreach($this->technicians as $tech)
-                    <label class="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-base-200 transition-colors">
-                        <input
-                            type="checkbox"
-                            wire:model="selectedTechnicians"
-                            value="{{ $tech->id }}"
-                            class="checkbox checkbox-sm checkbox-primary"
-                        />
-                        <span class="text-sm font-medium">{{ $tech->name }}</span>
-                    </label>
-                @endforeach
+            <div class="flex items-center justify-between mb-2">
+                <label class="text-sm font-medium text-base-content/70">
+                    Tugaskan Teknisi <span class="text-base-content/40 font-normal">(opsional)</span>
+                </label>
+                @if(count($selectedTechnicians) > 0)
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/15 text-primary">
+                        {{ count($selectedTechnicians) }} dipilih
+                    </span>
+                @endif
             </div>
+
+            @if($this->technicians->isEmpty())
+                <div class="text-center py-6 rounded-xl border border-dashed border-base-300 text-sm text-base-content/40">
+                    Belum ada teknisi terdaftar
+                </div>
+            @else
+                {{-- Kartu pilihan: has-[:checked] me-highlight kartu via CSS murni (instan, tanpa round-trip) --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto no-scrollbar pr-0.5">
+                    @foreach($this->technicians as $tech)
+                        <label class="flex items-center gap-3 cursor-pointer p-2.5 rounded-xl border border-base-300 hover:bg-base-200/60 transition-colors has-checked:border-primary has-checked:bg-primary/5">
+                            <input
+                                type="checkbox"
+                                wire:model="selectedTechnicians"
+                                value="{{ $tech->id }}"
+                                class="checkbox checkbox-sm checkbox-primary"
+                            />
+                            <div class="avatar avatar-placeholder shrink-0">
+                                <div class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                                    <span class="text-xs font-bold">{{ strtoupper(substr($tech->name, 0, 2)) }}</span>
+                                </div>
+                            </div>
+                            <span class="text-sm font-medium truncate">{{ $tech->name }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            @endif
         </div>
 
         <x-slot:actions>
-            <x-mary-button label="Batal" class="btn-ghost" wire:click="$set('showFormModal', false)" />
+            <x-mary-button label="Batal" class="btn-ghost rounded-full" wire:click="$set('showFormModal', false)" />
             <x-mary-button
                 :label="$editingId ? 'Simpan Perubahan' : 'Simpan Laporan'"
-                class="btn-primary"
+                class="btn-primary rounded-full"
                 wire:click="save"
                 spinner="save"
             />
@@ -376,8 +399,8 @@ new #[Layout('layouts.app')] class extends Component
         </p>
 
         <x-slot:actions>
-            <x-mary-button label="Batal" class="btn-ghost" wire:click="$set('showDeleteModal', false)" />
-            <x-mary-button label="Ya, Hapus" class="btn-error" wire:click="deleteReport" spinner="deleteReport" />
+            <x-mary-button label="Batal" class="btn-ghost rounded-full" wire:click="$set('showDeleteModal', false)" />
+            <x-mary-button label="Ya, Hapus" class="btn-error rounded-full" wire:click="deleteReport" spinner="deleteReport" />
         </x-slot:actions>
     </x-mary-modal>
 </div>
