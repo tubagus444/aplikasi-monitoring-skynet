@@ -82,7 +82,7 @@ new #[Layout('layouts.guest')] class extends Component
                         type="button"
                         @click="show = !show"
                         tabindex="-1"
-                        class="btn btn-ghost join-item border border-base-300 border-l-0 px-3"
+                        class="btn btn-ghost join-item border-0 px-3"
                         :aria-label="show ? 'Sembunyikan password' : 'Tampilkan password'"
                     >
                         <span x-show="!show"><x-mary-icon name="o-eye" class="w-4 h-4 opacity-50" /></span>
