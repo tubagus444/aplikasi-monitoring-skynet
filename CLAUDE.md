@@ -277,10 +277,29 @@ agar terdeteksi scanner Tailwind.
 ```
 
 Komponen `<x-avatar>` placeholder DaisyUI 5 memakai kelas `avatar avatar-placeholder`
-(bukan `avatar placeholder` gaya v4 lama). Untuk badge status (Ditugaskan/Memperbaiki/Selesai),
-role, dan indikator (Live, hitungan) gunakan `badge-soft badge-{warna}` agar tidak terlihat
-seperti blok solid. Forms plugin dipasang `strategy: class` supaya tidak me-reset `<input>`
-global — styling form sepenuhnya dipegang DaisyUI (`.input`).
+(bukan `avatar placeholder` gaya v4 lama). Forms plugin dipasang `strategy: class` supaya
+tidak me-reset `<input>` global — styling form sepenuhnya dipegang DaisyUI (`.input`).
+
+### Bahasa Visual / Konvensi UI Panel Admin
+
+Semua halaman admin memakai konvensi tampilan seragam — ikuti saat membuat komponen baru:
+
+- **Search box & tombol aksi/filter** = pil → tambahkan `rounded-full`
+  (mis. `class="input-sm w-56 rounded-full"`, `class="btn-primary btn-sm rounded-full"`)
+- **Card** = `rounded-2xl` (stat card div & `<x-mary-card class="rounded-2xl">`)
+- **Indikator status / role / hitungan** = pil soft + titik warna (dot+pill), BUKAN `<x-badge>`:
+
+```blade
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-info/15 text-info">
+    <span class="w-1.5 h-1.5 rounded-full bg-info"></span> Memperbaiki
+</span>
+```
+
+  Pemetaan warna status: `ditugaskan`=warning, `sedang_memperbaiki`=info, `selesai`=success.
+  Role: admin=primary, teknisi=secondary. Indikator "hidup" (Live, GPS aktif) tambahkan
+  `animate-pulse` pada titiknya. Tulis kelas warna sebagai literal lengkap (`bg-info/15`,
+  `text-info`) di dalam `match()` agar terdeteksi scanner.
+- Wrapper tabel selalu `overflow-x-auto no-scrollbar`.
 
 ### Pola Volt Component (Livewire Volt)
 
@@ -296,7 +315,7 @@ new #[Layout('layouts.app')] class extends Component {
 }; ?>
 
 <div>
-    <x-mary-header title="..." separator class="!mb-6">
+    <x-mary-header title="..." separator class="mb-6!">
         <x-slot:actions>...</x-slot:actions>
     </x-mary-header>
     <!-- konten halaman -->
