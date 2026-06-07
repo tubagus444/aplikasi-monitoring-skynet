@@ -49,7 +49,7 @@
                 <livewire:layout.navigation />
             </x-slot:sidebar>
 
-            <x-slot:content class="!p-0">
+            <x-slot:content class="p-0!">
                 <div class="p-6 lg:p-8 bg-base-200 min-h-screen">
                     {{ $slot }}
                 </div>

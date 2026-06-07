@@ -184,31 +184,31 @@ new #[Layout('layouts.app')] class extends Component
 
 <div>
     {{-- Header --}}
-    <x-mary-header title="Manajemen Laporan" separator class="!mb-6">
+    <x-mary-header title="Manajemen Laporan" separator class="mb-6!">
         <x-slot:actions>
             <x-mary-button
                 icon="o-plus"
                 label="Buat Laporan"
-                class="btn-primary btn-sm"
+                class="btn-primary btn-sm rounded-full"
                 wire:click="openCreate"
             />
         </x-slot:actions>
     </x-mary-header>
 
     {{-- Filter & Search --}}
-    <div class="flex flex-wrap gap-3 mb-4">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
         <x-mary-input
             wire:model.live.debounce="search"
             placeholder="Cari pelanggan atau alamat..."
             icon="o-magnifying-glass"
-            class="input-sm w-56"
+            class="input-sm w-56 rounded-full"
         />
-        <div class="flex gap-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
             @foreach (['' => 'Semua', 'ditugaskan' => 'Ditugaskan', 'sedang_memperbaiki' => 'Sedang Memperbaiki', 'selesai' => 'Selesai'] as $val => $label)
                 <button
                     wire:click="$set('filterStatus', '{{ $val }}')"
                     @class([
-                        'btn btn-xs rounded-full',
+                        'btn btn-sm rounded-full',
                         'btn-primary' => $filterStatus === $val,
                         'btn-ghost border border-base-300' => $filterStatus !== $val,
                     ])
@@ -218,14 +218,14 @@ new #[Layout('layouts.app')] class extends Component
     </div>
 
     {{-- Tabel --}}
-    <x-mary-card>
+    <x-mary-card class="rounded-2xl">
         @if($this->reports->isEmpty())
             <div class="text-center py-12 text-base-content/40">
                 <x-mary-icon name="o-document-text" class="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p class="text-sm">Tidak ada laporan ditemukan</p>
             </div>
         @else
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto no-scrollbar">
                 <table class="table table-sm w-full">
                     <thead>
                         <tr class="text-xs text-base-content/50 uppercase">
@@ -255,14 +255,19 @@ new #[Layout('layouts.app')] class extends Component
                                 </td>
                                 <td>
                                     @php
-                                        $badge = match($report->status) {
-                                            'ditugaskan'        => ['class' => 'badge-warning',  'label' => 'Ditugaskan'],
-                                            'sedang_memperbaiki'=> ['class' => 'badge-info',     'label' => 'Memperbaiki'],
-                                            'selesai'           => ['class' => 'badge-success',  'label' => 'Selesai'],
-                                            default             => ['class' => 'badge-ghost',    'label' => $report->status],
+                                        // Pil status: latar soft (opacity v4) + titik warna — selaras dengan dashboard.
+                                        // Kelas ditulis literal lengkap agar terdeteksi scanner Tailwind.
+                                        $status = match($report->status) {
+                                            'ditugaskan'        => ['pill' => 'bg-warning/15 text-warning', 'dot' => 'bg-warning',          'label' => 'Ditugaskan'],
+                                            'sedang_memperbaiki'=> ['pill' => 'bg-info/15 text-info',       'dot' => 'bg-info',             'label' => 'Memperbaiki'],
+                                            'selesai'           => ['pill' => 'bg-success/15 text-success', 'dot' => 'bg-success',          'label' => 'Selesai'],
+                                            default             => ['pill' => 'bg-base-200 text-base-content/60', 'dot' => 'bg-base-content/40', 'label' => $report->status],
                                         };
                                     @endphp
-                                    <x-badge value="{{ $badge['label'] }}" class="badge-sm {{ $badge['class'] }}" />
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ $status['pill'] }}">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $status['dot'] }}"></span>
+                                        {{ $status['label'] }}
+                                    </span>
                                 </td>
                                 <td class="text-xs text-base-content/50">
                                     {{ $report->created_at->format('d/m/Y') }}

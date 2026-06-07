@@ -9,7 +9,7 @@ Aplikasi web admin + Android untuk monitoring perbaikan jaringan. Studi kasus sk
 | Backend | Laravel 13 (PHP ^8.3) |
 | Realtime UI | Livewire v3 + Volt |
 | UI Components | Mary UI (`robsontenorio/mary`) |
-| CSS | Tailwind CSS v3 + DaisyUI v5 |
+| CSS | Tailwind CSS v4 (CSS-first config) + DaisyUI v5 |
 | Build Tool | Vite v8 |
 | Peta | Leaflet.js + OpenStreetMap |
 | Auth API | Laravel Sanctum (token-based, untuk Android) |
@@ -242,21 +242,45 @@ x-toast
 > `<x-toast />` sekali di `layouts.app`, lalu panggil `$this->success('...')` /
 > `error()` / `warning()` dari komponen yang memakai trait `Mary\Traits\Toast`.
 
-### Warna Tema: Opacity Modifier Tidak Berfungsi
+### Konfigurasi CSS-First (Tailwind v4 + DaisyUI v5)
 
-Tema didefinisikan sebagai CSS variables DaisyUI v5 di `resources/css/app.css`. Karena
-`primary`/`secondary`/`info`/`success`/`warning`/`error` adalah utility **statis** DaisyUI
-(bukan warna terdaftar di palet Tailwind), modifier opacity TIDAK ter-generate:
+Sejak migrasi ke Tailwind v4, **tidak ada lagi** `tailwind.config.js` maupun `postcss.config.js`.
+Semua konfigurasi ada di `resources/css/app.css` (CSS-first):
+
+- `@import "tailwindcss"` menggantikan `@tailwind base/components/utilities`
+- `@source "..."` mendaftarkan sumber kelas di folder vendor (Mary UI + paginasi Laravel);
+  `resources/views` terdeteksi otomatis
+- Plugin via `@plugin` (`@plugin "@tailwindcss/forms"`, `@plugin "daisyui"`)
+- Tema `skynet` & `skynet-dark` via `@plugin "daisyui/theme" { ... }` — terdaftar sebagai
+  tema DaisyUI yang sesungguhnya, bukan lagi CSS-var manual di `html[data-theme]`
+- Font default via `@theme { --font-sans: ... }`
+- Build memakai `@tailwindcss/vite` di `vite.config.js` (bukan PostCSS)
+
+**Opacity modifier kini BERFUNGSI** (beda dengan setup v3 lama). Karena warna tema terdaftar
+sebagai tema DaisyUI, modifier opacity ter-generate normal via `color-mix`:
 
 ```
-❌ bg-primary/10   border-info/30   text-success/50    (transparan / tidak muncul)
-✅ bg-primary      text-primary-content    bg-base-200    (warna solid OK)
-✅ text-base-content/50    (hanya base-content yang dukung opacity, via color-mix)
+✅ bg-primary/10   border-info/30   text-success/50   text-base-content/50
+✅ bg-primary      text-primary-content    bg-base-200
 ```
 
-Untuk aksen "soft" pakai warna solid (`bg-primary text-primary-content`) atau latar netral
-(`bg-base-200`) + ikon berwarna (`text-primary`). Tulis kelas warna sebagai **literal lengkap**
-(jangan dirangkai `bg-{{ $c }}/10`) agar terdeteksi scanner Tailwind JIT.
+Tetap tulis kelas warna sebagai **literal lengkap** (jangan dirangkai `bg-{{ $c }}/10`)
+agar terdeteksi scanner Tailwind.
+
+**Perubahan sintaks penting di v4 (jangan pakai pola v3 lama):**
+
+```
+❌ !mb-6      !p-0      !w-7              (prefix !important v3 — TIDAK berlaku di v4, kelas diabaikan)
+✅ mb-6!      p-0!      w-7!              (suffix !important v4)
+✅ badge-soft badge-info                  (varian "soft" DaisyUI 5 — pil bertint lembut untuk status)
+✅ no-scrollbar                           (@utility custom di app.css: scroll jalan, bar disembunyikan)
+```
+
+Komponen `<x-avatar>` placeholder DaisyUI 5 memakai kelas `avatar avatar-placeholder`
+(bukan `avatar placeholder` gaya v4 lama). Untuk badge status (Ditugaskan/Memperbaiki/Selesai),
+role, dan indikator (Live, hitungan) gunakan `badge-soft badge-{warna}` agar tidak terlihat
+seperti blok solid. Forms plugin dipasang `strategy: class` supaya tidak me-reset `<input>`
+global — styling form sepenuhnya dipegang DaisyUI (`.input`).
 
 ### Pola Volt Component (Livewire Volt)
 

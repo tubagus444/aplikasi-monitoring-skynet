@@ -1,20 +1,36 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /*
- * Tema SkyNet — didefinisikan sebagai CSS variables DaisyUI v5.
- *
- * Kenapa di sini, bukan di tailwind.config.js?
- * DaisyUI v5 TIDAK membaca `daisyui: { themes: [...] }` dari tailwind.config.js
- * (itu konvensi DaisyUI v4 / butuh Tailwind v4 CSS-first config). Project ini
- * pakai Tailwind v3, sehingga tema custom tak pernah ter-generate dan tombol
- * toggle tema tidak menghasilkan perubahan warna. Mendefinisikan langsung sebagai
- * custom property `--color-*` di sini independen dari versi & pasti bereaksi ke
- * atribut data-theme pada <html>. Selector `html[data-theme=...]` (specificity
- * lebih tinggi dari `:root` milik DaisyUI) memastikan tema ini menang.
+ * Sumber kelas untuk scanner Tailwind v4.
+ * resources/views terdeteksi otomatis, tapi folder vendor di-.gitignore sehingga
+ * harus didaftarkan manual (komponen Mary UI + view paginasi Laravel).
  */
-html[data-theme="skynet"] {
+@source "../../vendor/robsontenorio/mary/src/**/*.php";
+@source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
+
+/*
+ * strategy: class → forms plugin TIDAK lagi me-reset semua <input> secara global.
+ * Tanpa ini, reset border/ring bawaan forms bertabrakan dengan border .input DaisyUI
+ * sehingga input tampak dobel-border / boxy. DaisyUI yang pegang styling form.
+ */
+@plugin "@tailwindcss/forms" {
+    strategy: class;
+}
+
+/* DaisyUI v5: matikan tema bawaan, pakai tema SkyNet custom di bawah. */
+@plugin "daisyui" {
+    themes: false;
+}
+
+/*
+ * Tema SkyNet — didefinisikan via @plugin "daisyui/theme" (cara resmi DaisyUI v5
+ * + Tailwind v4). Karena warna terdaftar sebagai tema DaisyUI yang sesungguhnya,
+ * opacity modifier (mis. bg-primary/10, border-info/30) kini ter-generate normal
+ * via color-mix — beda dengan setup v3 lama yang memaksa warna solid saja.
+ */
+@plugin "daisyui/theme" {
+    name: "skynet";
+    default: true;
     color-scheme: light;
     --color-primary:           #2563EB;
     --color-primary-content:   #FFFFFF;
@@ -38,7 +54,8 @@ html[data-theme="skynet"] {
     --color-error-content:     #FFFFFF;
 }
 
-html[data-theme="skynet-dark"] {
+@plugin "daisyui/theme" {
+    name: "skynet-dark";
     color-scheme: dark;
     --color-primary:           #60A5FA;
     --color-primary-content:   #1E3A5F;
@@ -60,6 +77,23 @@ html[data-theme="skynet-dark"] {
     --color-warning-content:   #451A03;
     --color-error:             #F87171;
     --color-error-content:     #450A0A;
+}
+
+/* Font default aplikasi. */
+@theme {
+    --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/*
+ * Sembunyikan scrollbar tapi tetap bisa di-scroll (dipakai pada wrapper tabel
+ * yang overflow-x beberapa px di desktop — bar-nya mengganggu, scroll mobile tetap jalan).
+ */
+@utility no-scrollbar {
+    &::-webkit-scrollbar { display: none; }
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 @layer base {

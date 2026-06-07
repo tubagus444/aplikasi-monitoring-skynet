@@ -45,40 +45,37 @@ new class extends Component
     <div class="border-t border-base-300 px-3 py-3 mt-auto">
         <div class="flex items-center gap-3">
 
-            <div class="avatar placeholder flex-shrink-0">
-                <div class="w-8 h-8 rounded-lg bg-primary text-primary-content flex items-center justify-center">
+            <div class="avatar avatar-placeholder flex-shrink-0">
+                <div class="w-9 h-9 rounded-lg bg-primary text-primary-content flex items-center justify-center">
                     <span class="text-xs font-bold">
                         {{ strtoupper(substr(auth()->user()->name, 0, 2)) }}
                     </span>
                 </div>
             </div>
 
-            <div class="mary-hideable flex-1 min-w-0 flex items-center gap-2">
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-base-content/80 truncate">
-                        {{ auth()->user()->name }}
-                    </p>
-                    <button wire:click="logout" class="text-xs text-base-content/40 hover:text-error transition-colors cursor-pointer font-medium">
-                        Keluar
-                    </button>
-                </div>
-
-                {{--
-                    Native onclick → window.skynetToggleTheme() (didefinisikan di layouts.app).
-                    Tidak bergantung scope Alpine, jadi andal di komponen Livewire nested & survive wire:navigate.
-                    Ikon dikendalikan CSS: .theme-icon-moon/.theme-icon-sun bereaksi ke data-theme di <html>.
-                --}}
-                <button
-                    type="button"
-                    onclick="skynetToggleTheme()"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg text-base-content/40 hover:text-base-content/70 hover:bg-base-content/[0.06] transition-colors flex-shrink-0"
-                    title="Toggle tema"
-                >
-                    <span class="theme-icon-moon"><x-mary-icon name="o-moon" class="w-4 h-4" /></span>
-                    <span class="theme-icon-sun"><x-mary-icon name="o-sun"  class="w-4 h-4" /></span>
+            <div class="mary-hideable flex-1 min-w-0">
+                <p class="text-sm font-semibold text-base-content/80 truncate">
+                    {{ auth()->user()->name }}
+                </p>
+                <button wire:click="logout" class="text-xs text-base-content/40 hover:text-error transition-colors cursor-pointer font-medium">
+                    Keluar
                 </button>
-
             </div>
+
+            {{--
+                Native onclick → window.skynetToggleTheme() (didefinisikan di layouts.app).
+                Tidak bergantung scope Alpine, jadi andal di komponen Livewire nested & survive wire:navigate.
+                Ikon dikendalikan CSS: .theme-icon-moon/.theme-icon-sun bereaksi ke data-theme di <html>.
+            --}}
+            <button
+                type="button"
+                onclick="skynetToggleTheme()"
+                class="mary-hideable shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-base-content/40 hover:text-base-content/70 hover:bg-base-content/[0.06] transition-colors"
+                title="Toggle tema"
+            >
+                <span class="theme-icon-moon"><x-mary-icon name="o-moon" class="w-4 h-4" /></span>
+                <span class="theme-icon-sun"><x-mary-icon name="o-sun"  class="w-4 h-4" /></span>
+            </button>
 
         </div>
     </div>

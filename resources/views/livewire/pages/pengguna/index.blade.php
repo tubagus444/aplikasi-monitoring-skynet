@@ -144,31 +144,31 @@ new #[Layout('layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <x-mary-header title="Manajemen Pengguna" separator class="!mb-6">
+    <x-mary-header title="Manajemen Pengguna" separator class="mb-6!">
         <x-slot:actions>
             <x-mary-button
                 icon="o-plus"
                 label="Tambah Pengguna"
-                class="btn-primary btn-sm"
+                class="btn-primary btn-sm rounded-full"
                 wire:click="openCreate"
             />
         </x-slot:actions>
     </x-mary-header>
 
     {{-- Filter & Search --}}
-    <div class="flex flex-wrap gap-3 mb-4">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
         <x-mary-input
             wire:model.live.debounce="search"
             placeholder="Cari nama atau email..."
             icon="o-magnifying-glass"
-            class="input-sm w-56"
+            class="input-sm w-56 rounded-full"
         />
-        <div class="flex gap-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
             @foreach (['' => 'Semua', 'admin' => 'Admin', 'teknisi' => 'Teknisi'] as $val => $label)
                 <button
                     wire:click="$set('filterRole', '{{ $val }}')"
                     @class([
-                        'btn btn-xs rounded-full',
+                        'btn btn-sm rounded-full',
                         'btn-primary' => $filterRole === $val,
                         'btn-ghost border border-base-300' => $filterRole !== $val,
                     ])
@@ -178,14 +178,14 @@ new #[Layout('layouts.app')] class extends Component
     </div>
 
     {{-- Tabel --}}
-    <x-mary-card>
+    <x-mary-card class="rounded-2xl">
         @if($this->users->isEmpty())
             <div class="text-center py-12 text-base-content/40">
                 <x-mary-icon name="o-users" class="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p class="text-sm">Tidak ada pengguna ditemukan</p>
             </div>
         @else
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto no-scrollbar">
                 <table class="table table-sm w-full">
                     <thead>
                         <tr class="text-xs text-base-content/50 uppercase">
@@ -205,7 +205,7 @@ new #[Layout('layouts.app')] class extends Component
                                     <div class="flex items-center gap-2">
                                         <x-avatar
                                             :placeholder="strtoupper(substr($user->name, 0, 1))"
-                                            class="!w-7 !h-7 !text-xs bg-primary/10 text-primary"
+                                            class="w-7! h-7! text-xs! bg-primary/10 text-primary"
                                         />
                                         <span class="font-medium text-sm">{{ $user->name }}</span>
                                         @if($user->id === auth()->id())
@@ -215,10 +215,16 @@ new #[Layout('layouts.app')] class extends Component
                                 </td>
                                 <td class="text-sm text-base-content/70">{{ $user->email }}</td>
                                 <td>
-                                    <x-badge
-                                        value="{{ $user->role === 'admin' ? 'Admin' : 'Teknisi' }}"
-                                        class="badge-sm {{ $user->role === 'admin' ? 'badge-primary' : 'badge-secondary' }}"
-                                    />
+                                    @php
+                                        // Pil role: dot+pil, selaras dengan indikator status di halaman lain.
+                                        $roleStyle = $user->role === 'admin'
+                                            ? ['pill' => 'bg-primary/15 text-primary',     'dot' => 'bg-primary',   'label' => 'Admin']
+                                            : ['pill' => 'bg-secondary/15 text-secondary', 'dot' => 'bg-secondary', 'label' => 'Teknisi'];
+                                    @endphp
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ $roleStyle['pill'] }}">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $roleStyle['dot'] }}"></span>
+                                        {{ $roleStyle['label'] }}
+                                    </span>
                                 </td>
                                 <td class="text-xs text-base-content/50">
                                     {{ $user->created_at->format('d/m/Y') }}
