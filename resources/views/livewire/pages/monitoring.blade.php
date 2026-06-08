@@ -53,6 +53,7 @@ new #[Layout('layouts.app')] class extends Component
 <div wire:poll.10s="loadLocations">
     <x-mary-header title="Monitoring GPS" separator class="mb-6!">
         <x-slot:actions>
+            <x-mary-button icon="o-arrow-path" class="btn-ghost btn-sm rounded-full" label="Refresh" wire:click="loadLocations" wire:loading.attr="disabled" wire:target="loadLocations" />
             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-info/15 text-info">
                 <span class="w-1.5 h-1.5 rounded-full bg-info animate-pulse"></span>
                 Live

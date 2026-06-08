@@ -59,6 +59,12 @@ new #[Layout('layouts.app')] class extends Component
             ->get();
     }
 
+    public function refreshMap(): void
+    {
+        unset($this->mapLocations);
+        $this->dispatch('map-data-refreshed', locations: $this->mapLocations);
+    }
+
     #[Computed]
     public function mapLocations(): array
     {
@@ -138,6 +144,7 @@ new #[Layout('layouts.app')] class extends Component
 
         <x-mary-card title="Peta GPS Teknisi Aktif" class="rounded-2xl">
             <x-slot:menu>
+                <x-mary-button icon="o-arrow-path" class="btn-ghost btn-xs rounded-full" wire:click="refreshMap" wire:loading.attr="disabled" wire:target="refreshMap" />
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-info/15 text-info">
                     <span class="w-1.5 h-1.5 rounded-full bg-info animate-pulse"></span>
                     {{ count($this->mapLocations) }} aktif
@@ -225,32 +232,51 @@ new #[Layout('layouts.app')] class extends Component
                 maxZoom: 19,
             }).addTo(map);
 
-            const locations = @json($this->mapLocations);
-            const markerList = [];
+            const markers = {};
 
-            locations.forEach(loc => {
-                const popup = `
-                    <div style="min-width:140px;line-height:1.4">
-                        <p style="font-weight:600;margin:0 0 2px;font-size:13px">${loc.name}</p>
-                        <p style="margin:0;font-size:12px;color:#555">${loc.customer}</p>
-                        <p style="margin:2px 0 0;font-size:11px;color:#888">${loc.damage_type}</p>
-                    </div>`;
-
-                const marker = L.marker([loc.latitude, loc.longitude])
-                    .bindPopup(popup)
-                    .addTo(map);
-
-                markerList.push(marker);
-            });
+            function updateMarkers(locations) {
+                const activeIds = locations.map(l => String(l.id));
+                Object.keys(markers).forEach(id => {
+                    if (!activeIds.includes(id)) {
+                        map.removeLayer(markers[id]);
+                        delete markers[id];
+                    }
+                });
+                const markerList = [];
+                locations.forEach(loc => {
+                    const popup = `
+                        <div style="min-width:140px;line-height:1.4">
+                            <p style="font-weight:600;margin:0 0 2px;font-size:13px">${loc.name}</p>
+                            <p style="margin:0;font-size:12px;color:#555">${loc.customer}</p>
+                            <p style="margin:2px 0 0;font-size:11px;color:#888">${loc.damage_type}</p>
+                        </div>`;
+                    const id = String(loc.id);
+                    if (markers[id]) {
+                        markers[id].setLatLng([loc.latitude, loc.longitude]);
+                        markers[id].getPopup().setContent(popup);
+                    } else {
+                        markers[id] = L.marker([loc.latitude, loc.longitude])
+                            .bindPopup(popup)
+                            .addTo(map);
+                    }
+                    markerList.push(markers[id]);
+                });
+                return markerList;
+            }
 
             setTimeout(() => {
                 map.invalidateSize();
+                const markerList = updateMarkers(@json($this->mapLocations));
                 if (markerList.length === 1) {
                     map.setView(markerList[0].getLatLng(), 15);
-                } else {
+                } else if (markerList.length > 1) {
                     map.fitBounds(L.featureGroup(markerList).getBounds().pad(0.3));
                 }
             }, 100);
+
+            $wire.on('map-data-refreshed', ({ locations }) => {
+                updateMarkers(locations);
+            });
         })();
     </script>
     @endscript
