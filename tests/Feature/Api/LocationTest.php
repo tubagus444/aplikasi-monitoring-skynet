@@ -46,6 +46,50 @@ class LocationTest extends TestCase
         ]);
     }
 
+    public function test_recorded_at_dari_device_dipakai(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+        $report  = DamageReport::factory()->sedangDiperbaiki()->create();
+        TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $waktu = now()->subMinutes(3)->startOfSecond();
+
+        $this->actingAs($teknisi, 'sanctum')
+            ->postJson('/api/location', [
+                'report_id'   => $report->id,
+                'latitude'    => -6.2088,
+                'longitude'   => 106.8456,
+                'recorded_at' => $waktu->toIso8601String(),
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('location_logs', [
+            'technician_id' => $teknisi->id,
+            'report_id'     => $report->id,
+            'recorded_at'   => $waktu->toDateTimeString(),
+        ]);
+    }
+
+    public function test_recorded_at_di_masa_depan_diabaikan(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+        $report  = DamageReport::factory()->sedangDiperbaiki()->create();
+        TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $this->actingAs($teknisi, 'sanctum')
+            ->postJson('/api/location', [
+                'report_id'   => $report->id,
+                'latitude'    => -6.2088,
+                'longitude'   => 106.8456,
+                'recorded_at' => now()->addDay()->toIso8601String(),
+            ])
+            ->assertOk();
+
+        // Jam device melenceng → server pakai now(), bukan timestamp masa depan.
+        $tersimpan = \App\Models\LocationLog::latest('id')->first();
+        $this->assertFalse($tersimpan->recorded_at->isFuture());
+    }
+
     public function test_kirim_gps_tanpa_autentikasi_ditolak(): void
     {
         $this->postJson('/api/location', [

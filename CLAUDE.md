@@ -135,7 +135,7 @@ config/
   firebase.php          # Konfigurasi kreait/laravel-firebase
 tests/
   Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
-                        # (21 test cases, semua pass)
+                        # (23 test cases, semua pass)
 ```
 
 ## Routes & Endpoint
@@ -214,7 +214,7 @@ tests/
 **GPS Tracking**
 | Method | Path | Auth | Keterangan |
 |---|---|---|---|
-| POST | `/api/location` | token | Kirim koordinat GPS (berkala saat `in_progress`) |
+| POST | `/api/location` | token | Kirim koordinat GPS (berkala saat `in_progress`). Body: `report_id`, `latitude`, `longitude`, + opsional `recorded_at` (ISO8601, waktu GPS diambil di device; default = waktu terima server, jam masa depan diabaikan) |
 
 **Notifikasi**
 | Method | Path | Auth | Keterangan |
