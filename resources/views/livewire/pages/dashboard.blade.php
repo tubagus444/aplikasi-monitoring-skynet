@@ -174,12 +174,6 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="flex flex-col divide-y divide-base-200">
                     @foreach($this->laporanTerbaru as $report)
                         @php
-                            $status = match($report->status) {
-                                'ditugaskan'         => ['pill' => 'bg-warning/15 text-warning', 'dot' => 'bg-warning',              'label' => 'Ditugaskan'],
-                                'sedang_memperbaiki' => ['pill' => 'bg-info/15 text-info',       'dot' => 'bg-info animate-pulse',   'label' => 'Memperbaiki'],
-                                'selesai'            => ['pill' => 'bg-success/15 text-success', 'dot' => 'bg-success',              'label' => 'Selesai'],
-                                default              => ['pill' => 'bg-base-200 text-base-content/60', 'dot' => 'bg-base-content/40', 'label' => $report->status],
-                            };
                             // Laporan belum selesai dan sudah >24 jam dianggap urgen
                             $isUrgen = $report->status !== \App\Enums\ReportStatus::Selesai->value && $report->created_at->diffInHours(now()) > 24;
                         @endphp
@@ -195,10 +189,7 @@ new #[Layout('layouts.app')] class extends Component
                                 </div>
                             </div>
                             <div class="shrink-0 flex flex-col items-end gap-1.5">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ $status['pill'] }}">
-                                    <span class="w-1.5 h-1.5 rounded-full {{ $status['dot'] }}"></span>
-                                    {{ $status['label'] }}
-                                </span>
+                                <x-status-pill :status="$report->status" pulse />
                                 @if($isUrgen)
                                     <span class="text-[10px] text-error/70 font-medium">Perlu perhatian</span>
                                 @endif

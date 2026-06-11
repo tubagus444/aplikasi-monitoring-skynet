@@ -233,20 +233,7 @@ new #[Layout('layouts.app')] class extends Component
                                     @endif
                                 </td>
                                 <td>
-                                    @php
-                                        // Pil status: latar soft (opacity v4) + titik warna — selaras dengan dashboard.
-                                        // Kelas ditulis literal lengkap agar terdeteksi scanner Tailwind.
-                                        $status = match($report->status) {
-                                            'ditugaskan'        => ['pill' => 'bg-warning/15 text-warning', 'dot' => 'bg-warning',          'label' => 'Ditugaskan'],
-                                            'sedang_memperbaiki'=> ['pill' => 'bg-info/15 text-info',       'dot' => 'bg-info',             'label' => 'Memperbaiki'],
-                                            'selesai'           => ['pill' => 'bg-success/15 text-success', 'dot' => 'bg-success',          'label' => 'Selesai'],
-                                            default             => ['pill' => 'bg-base-200 text-base-content/60', 'dot' => 'bg-base-content/40', 'label' => $report->status],
-                                        };
-                                    @endphp
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ $status['pill'] }}">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $status['dot'] }}"></span>
-                                        {{ $status['label'] }}
-                                    </span>
+                                    <x-status-pill :status="$report->status" />
                                 </td>
                                 <td class="text-xs text-base-content/50">
                                     {{ $report->created_at->format('d/m/Y') }}
