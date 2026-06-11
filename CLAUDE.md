@@ -108,6 +108,8 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 
 ```
 app/
+  Actions/
+    SyncReportTechnicians.php  # Sync penugasan teknisi + notifikasi; dipanggil save() laporan
   Http/Controllers/Api/ # AuthController, TaskController,
                         # LocationController, NotificationController
   Http/Controllers/     # ReportExportController (ekspor PDF — web, bukan Volt)
@@ -137,8 +139,9 @@ config/
   firebase.php          # Konfigurasi kreait/laravel-firebase
 tests/
   Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
-  Feature/Web/          # PageRenderTest (smoke: tiap halaman admin render 200 + alur root/login)
-                        # (27 test cases, semua pass — 23 API + 4 Web)
+  Feature/Web/          # PageRenderTest (smoke halaman admin), StatusPillTest,
+                        # SyncReportTechniciansTest, LaporanFormTest (integrasi save)
+                        # (35 test cases, semua pass — 23 API + 12 Web)
 ```
 
 ## Routes & Endpoint
@@ -242,6 +245,9 @@ tests/
 - Response non-interaktif (ekspor PDF / download file) memakai **controller biasa** di
   `app/Http/Controllers/` (mis. `ReportExportController`), BUKAN Volt — Volt khusus halaman
   interaktif. Lihat subbagian "Ekspor PDF (dompdf)" di bawah
+- Logika bisnis kompleks/berulang dikeluarkan ke **Action class** di `app/Actions/`
+  (mis. `SyncReportTechnicians` — sync penugasan + notifikasi, dipakai bersama alur buat
+  & edit laporan), bukan ditanam di dalam method Volt component
 - API untuk Android menggunakan prefix `/api` dengan auth `sanctum`
 - Role middleware ada di `app/Http/Middleware/RoleMiddleware.php`
 - Gunakan `composer dev` untuk menjalankan semua service, bukan `php artisan serve` saja
@@ -338,6 +344,10 @@ Semua halaman admin memakai konvensi tampilan seragam — ikuti saat membuat kom
   Role: admin=primary, teknisi=secondary. Indikator "hidup" (Live, GPS aktif) tambahkan
   `animate-pulse` pada titiknya. Tulis kelas warna sebagai literal lengkap (`bg-info/15`,
   `text-info`) di dalam `match()` agar terdeteksi scanner.
+  **Status laporan punya komponen siap pakai**: `<x-status-pill :status="$report->status" />`
+  (+ atribut `pulse` untuk titik berdenyut) — pakai itu, jangan menyalin `match()`. Pola dot+pill
+  manual di atas tetap untuk indikator lain (role, hitungan) atau label kontekstual (mis. timeline
+  work-log di riwayat yang memakai "Mulai Memperbaiki").
 - Wrapper tabel selalu `overflow-x-auto no-scrollbar`.
 - **Pilihan radio/checkbox bentuk kartu** (mis. pemilih teknisi di modal laporan, role di
   modal pengguna): bungkus `<input>` dalam `<label>`, highlight via `has-checked:` (CSS murni,
