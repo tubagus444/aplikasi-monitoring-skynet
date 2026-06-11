@@ -17,8 +17,8 @@
 ## Daftar Isi
 
 1. [Pembersihan otomatis `location_logs` (retensi data)](#1-pembersihan-otomatis-location_logs-retensi-data) 🟡
-2. [Optimasi baterai GPS](#2-optimasi-baterai-gps) 📱
-3. [Tampilkan jejak rute GPS di Riwayat](#3-tampilkan-jejak-rute-gps-di-riwayat) 💡
+2. [Tampilkan jejak rute GPS di Riwayat](#2-tampilkan-jejak-rute-gps-di-riwayat) 💡
+3. [Migrasi peta ke Google Maps SDK](#3-migrasi-peta-ke-google-maps-sdk) 🟡
 4. [Sudah dikerjakan (arsip)](#4-sudah-dikerjakan-arsip)
 
 ---
@@ -70,43 +70,13 @@ tabel yang tumbuh tanpa batas (kira-kira ~120 baris/perbaikan → ratusan ribu b
      cukup jalankan **manual** sesekali: `php artisan locations:cleanup`. Pasang scheduler
      beneran nanti saat sudah deploy ke server.
 
-**Catatan:** kalau nanti mau bikin fitur #3 (jejak rute di Riwayat), **jangan pakai pendekatan A
+**Catatan:** kalau nanti mau bikin fitur #2 (jejak rute di Riwayat), **jangan pakai pendekatan A
 tanpa tenggang** — pilih **B** atau perpanjang masa tenggang, supaya titik-titiknya masih ada
 saat mau digambar jadi rute.
 
 ---
 
-## 2. Optimasi baterai GPS 📱
-
-**Apa:** Pengaturan strategi pengambilan & pengiriman GPS di app Android teknisi supaya hemat
-baterai tapi tetap akurat. **Faktor utama boros/tidaknya baterai ada di sini**, bukan di server
-Laravel (server cuma menerima apa pun yang dikirim HP).
-
-**Kenapa:** Tanpa strategi yang tepat, HP teknisi bisa cepat habis baterai saat status
-`sedang_memperbaiki` (GPS aktif). Yang diincar: posisi tetap akurat saat teknisi bergerak,
-tapi hemat saat ia diam bekerja di satu titik.
-
-**Bagaimana (semua di kode Kotlin repo Android):**
-
-| Parameter | Rekomendasi | Kenapa |
-|---|---|---|
-| Provider | `FusedLocationProviderClient` (Play Services) | Gabung GPS+WiFi+cell+sensor, jauh lebih hemat dari `LocationManager` mentah |
-| `setSmallestDisplacement` | **10–25 meter** | **Kunci hemat.** Teknisi yang diam (sedang memperbaiki) tidak memicu update terus-menerus |
-| Priority | `PRIORITY_BALANCED_POWER_ACCURACY` (~100 m) | Cukup untuk lihat posisi di peta. `HIGH_ACCURACY` = chip GPS penuh = paling boros |
-| Interval | `interval` 15–20 dtk, `fastestInterval` 10 dtk | Tiap kirim menyalakan radio seluler (*tail energy* ~20 dtk). Jangan kirim tiap 5 dtk |
-| Foreground service | Wajib (Android 8+), **stop total saat `done`** | Pastikan benar-benar berhenti saat `selesai`, jangan cuma pause |
-
-**Catatan:** Server **sudah siap** menerima field `recorded_at` (waktu GPS diambil di device)
-di `POST /api/location` — lihat [LocationController.php](app/Http/Controllers/Api/LocationController.php).
-Tinggal sisi Android yang menyertakannya, mis.:
-```json
-{ "report_id": 12, "latitude": -6.37, "longitude": 107.16, "recorded_at": "2026-06-10T14:05:30+07:00" }
-```
-Kalau belum dikirim pun tidak error — server otomatis pakai waktu terima sebagai fallback.
-
----
-
-## 3. Tampilkan jejak rute GPS di Riwayat 💡
+## 2. Tampilkan jejak rute GPS di Riwayat 💡
 
 **Apa:** Di halaman/detail Riwayat, gambar **garis rute** (polyline) dari seluruh titik GPS yang
 dilewati teknisi selama mengerjakan satu laporan — bukan cuma satu titik terakhir seperti di peta
@@ -132,14 +102,76 @@ rute tidak bisa digambar. Jadi kalau fitur ini mau dibuat, retensi data harus pa
 
 ---
 
+## 3. Migrasi peta ke Google Maps SDK 🟡
+
+**Apa:** Mengganti pustaka peta dari **Leaflet.js + OpenStreetMap** ke **Google Maps JavaScript
+API**, kalau suatu saat dituntut keadaan (mis. permintaan klien, kebutuhan tampilan/fitur khas
+Google). Bukan rencana wajib — catatan kesiapan saja.
+
+**Kenapa bisa:** Peta di aplikasi ini cuma **lapisan presentasi**. Data lokasi yang disimpan &
+dikirim hanyalah koordinat `latitude`/`longitude` (WGS84) — lihat
+[LocationController.php](app/Http/Controllers/Api/LocationController.php),
+[LocationLog.php](app/Models/LocationLog.php), dan endpoint `/dashboard/map-data`. Format koordinat
+ini **identik** untuk Leaflet maupun Google Maps. Konsekuensinya:
+
+- **Backend / API / database / app Android → 0 perubahan.** Teknisi tetap kirim lat-lng yang sama.
+- Yang berubah **hanya cara menggambar titik di layar.**
+
+**Bagaimana — hanya menyentuh 3 file view:**
+
+| File | Perubahan |
+|---|---|
+| [layouts/app.blade.php](resources/views/layouts/app.blade.php) | Ganti CDN Leaflet (`<link>`+`<script>` unpkg) → loader Google Maps JS API + API key |
+| [monitoring.blade.php](resources/views/livewire/pages/monitoring.blade.php) | Terjemahkan blok `@script` (init peta, marker, fitBounds, event `focus-technician`) |
+| [dashboard.blade.php](resources/views/livewire/pages/dashboard.blade.php) | Sama, blok peta-nya |
+
+Penerjemahan API hampir 1:1:
+
+| Leaflet (sekarang) | Google Maps SDK |
+|---|---|
+| `L.map(el).setView([lat,lng], 12)` | `new google.maps.Map(el, { center, zoom })` |
+| `L.tileLayer('...osm...')` | otomatis (tile Google sendiri) |
+| `L.marker([lat,lng])` | `new google.maps.marker.AdvancedMarkerElement({ position })` |
+| `map.fitBounds(...)` | `map.fitBounds(new google.maps.LatLngBounds(...))` |
+| `map.setView(latlng, 17)` | `map.setCenter(latlng); map.setZoom(17)` |
+
+**Yang TIDAK berubah (penting):** pola integrasi Livewire ↔ peta tetap sama persis — `wire:ignore`
+pada container, init via `@script` (bukan inline `<script>`), `wire:poll.10s="loadLocations"` +
+`$wire.on('locations-updated')`, dan event `focus-technician`. Semua mekanisme realtime/polling itu
+independen dari pustaka peta; tinggal isi callback-nya dengan API Google.
+
+**Catatan:**
+- **Biaya:** Leaflet+OSM sekarang **gratis tanpa API key**. Google Maps **wajib API key + akun
+  billing (kartu kredit terdaftar)**, walau ada free tier bulanan. Untuk skala internal admin SkyNet
+  (trafik rendah) free tier **sangat cukup** — Google menagih per **map load** (saat
+  `new google.maps.Map()`), sedangkan polling 10 detik yang cuma menggerakkan marker **tidak**
+  dihitung map load. Risiko biaya baru muncul kalau menambah fitur Geocoding/Directions/Places
+  (aplikasi ini tidak memakainya).
+- **Wajib dipertahankan:** ekuivalen guard anti double-init (`if (el._leaflet_id) return` di Leaflet)
+  harus tetap ada agar peta tidak di-init ulang tiap poll — kalau lalai, map load (dan biaya)
+  membengkak.
+- **Key jangan di-commit:** batasi API key per domain/referrer dan simpan di `.env` (ikuti precedent
+  `FIREBASE_CREDENTIALS`).
+
+Penghalang utama migrasi ini **bukan teknis** (cuma ~3 file view, backend nol perubahan), melainkan
+keputusan **billing Google vs OSM yang gratis**.
+
+---
+
 ## 4. Sudah dikerjakan (arsip)
 
 Catatan ringkas hal yang sudah selesai, biar konteksnya tidak hilang.
 
+- **Optimasi baterai GPS (sisi Android)** 📱 — strategi pengambilan & pengiriman GPS saat status
+  `sedang_memperbaiki` sudah disetel hemat baterai di repo Android (a.l. `FusedLocationProviderClient`,
+  `setSmallestDisplacement`, priority `BALANCED_POWER_ACCURACY`, interval & foreground service yang
+  berhenti total saat `done`). Faktor utama boros/tidaknya baterai ada di sisi HP ini, bukan server. ✅
 - **Index komposit `location_logs`** — `(technician_id, report_id, recorded_at)` via
   [migrasi 2026_06_10](database/migrations/2026_06_10_000000_add_index_to_location_logs_table.php).
   Mempercepat query "titik terbaru per teknisi" yang dipanggil tiap 10 detik. ✅
 - **`recorded_at` dari device** — `POST /api/location` kini menerima `recorded_at` opsional
   (waktu GPS diambil di HP, lebih akurat dari waktu sampai server), dengan guard menolak jam
   device yang melenceng ke masa depan. Backward-compatible. ✅
-  - *Follow-up tersisa:* sisi Android perlu mulai mengirim field ini (lihat fitur #2).
+  - *Follow-up tersisa:* pastikan sisi Android benar-benar **mengirim** field `recorded_at` ini saat
+    POST lokasi (terpisah dari optimasi baterai di atas). Kalau belum dikirim pun tidak error —
+    server otomatis pakai waktu terima sebagai fallback.
