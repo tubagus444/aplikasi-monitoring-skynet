@@ -1,10 +1,9 @@
 <?php
 
+use App\Actions\SyncReportTechnicians;
 use App\Enums\ReportStatus;
 use App\Models\DamageReport;
 use App\Models\DamageType;
-use App\Models\Notification;
-use App\Models\TaskAssignment;
 use App\Models\User;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -103,25 +102,6 @@ new #[Layout('layouts.app')] class extends Component
                 'damage_type_id' => $this->damage_type_id,
                 'notes'          => $this->notes ?: null,
             ]);
-
-            // Sync teknisi
-            $existingTechIds = $report->taskAssignments()->pluck('technician_id')->toArray();
-            $report->taskAssignments()->delete();
-            foreach ($this->selectedTechnicians as $techId) {
-                TaskAssignment::create([
-                    'report_id'      => $report->id,
-                    'technician_id'  => $techId,
-                ]);
-            }
-
-            // Notifikasi hanya ke teknisi yang baru ditambahkan
-            foreach (array_diff($this->selectedTechnicians, $existingTechIds) as $techId) {
-                Notification::create([
-                    'user_id' => $techId,
-                    'title'   => 'Tugas Baru Ditugaskan',
-                    'body'    => "Anda ditugaskan untuk menangani laporan gangguan di {$this->address} atas nama pelanggan {$this->customer_name}.",
-                ]);
-            }
         } else {
             $report = DamageReport::create([
                 'created_by'     => auth()->id(),
@@ -131,19 +111,10 @@ new #[Layout('layouts.app')] class extends Component
                 'notes'          => $this->notes ?: null,
                 'status'         => ReportStatus::Ditugaskan->value,
             ]);
-
-            foreach ($this->selectedTechnicians as $techId) {
-                TaskAssignment::create([
-                    'report_id'     => $report->id,
-                    'technician_id' => $techId,
-                ]);
-                Notification::create([
-                    'user_id' => $techId,
-                    'title'   => 'Tugas Baru Ditugaskan',
-                    'body'    => "Anda ditugaskan untuk menangani laporan gangguan di {$this->address} atas nama pelanggan {$this->customer_name}.",
-                ]);
-            }
         }
+
+        // Sinkronkan penugasan teknisi + notifikasi teknisi baru (sumber tunggal)
+        (new SyncReportTechnicians)($report, $this->selectedTechnicians);
 
         $this->showFormModal = false;
         unset($this->reports);
