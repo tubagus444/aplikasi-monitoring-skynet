@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ReportStatus;
 use App\Models\LocationLog;
 use App\Models\TaskAssignment;
 use Livewire\Attributes\Layout;
@@ -17,7 +18,7 @@ new #[Layout('layouts.app')] class extends Component
     public function loadLocations(): void
     {
         $assignments = TaskAssignment::with(['technician', 'report.damageType'])
-            ->whereHas('report', fn($q) => $q->where('status', 'sedang_memperbaiki'))
+            ->whereHas('report', fn($q) => $q->where('status', ReportStatus::SedangMemperbaiki->value))
             ->get();
 
         $seen   = [];

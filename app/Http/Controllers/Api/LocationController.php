@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ReportStatus;
 use App\Http\Controllers\Controller;
 use App\Models\LocationLog;
 use App\Models\TaskAssignment;
@@ -22,7 +23,7 @@ class LocationController extends Controller
 
         $assigned = TaskAssignment::where('technician_id', $request->user()->id)
             ->where('report_id', $request->report_id)
-            ->whereHas('report', fn($q) => $q->where('status', 'sedang_memperbaiki'))
+            ->whereHas('report', fn($q) => $q->where('status', ReportStatus::SedangMemperbaiki->value))
             ->exists();
 
         if (! $assigned) {

@@ -114,10 +114,12 @@ app/
   Models/               # DamageReport, DamageType, TaskAssignment,
                         # WorkLog, LocationLog, Notification, User
                         # DamageReport: scope riwayatSelesai($search,$period)
+  Enums/
+    ReportStatus.php    # Sumber kebenaran status laporan (dipakai PHP & query, hindari literal)
   Observers/
     NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
-  web.php               # Volt routes (admin panel) + history/export
+  web.php               # Volt routes (admin panel) + history/export + redirect `/`
   api.php               # 8 API endpoints (Android via Sanctum)
 resources/views/livewire/pages/
   dashboard.blade.php
@@ -135,7 +137,8 @@ config/
   firebase.php          # Konfigurasi kreait/laravel-firebase
 tests/
   Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
-                        # (23 test cases, semua pass)
+  Feature/Web/          # PageRenderTest (smoke: tiap halaman admin render 200 + alur root/login)
+                        # (27 test cases, semua pass — 23 API + 4 Web)
 ```
 
 ## Routes & Endpoint
@@ -152,9 +155,15 @@ tests/
 **Autentikasi**
 | Method | Path | Keterangan |
 |---|---|---|
-| GET | `/login` | Halaman form login |
-| POST | `/login` | Proses login, buat session |
-| POST | `/logout` | Hapus session |
+| GET | `/login` | Halaman form login (admin-only) |
+| POST | `/login` | Proses login; guard di `login.blade.php` menolak non-admin |
+| — | (sidebar) | Logout = Livewire action (`App\Livewire\Actions\Logout`), bukan route HTTP |
+
+> **Auth web sengaja admin-only.** TIDAK ada register / lupa-reset password / verifikasi email /
+> halaman profil — semua scaffolding Breeze itu dihapus (app internal). Ganti password sendiri
+> lewat menu **Pengguna** (admin boleh edit akunnya sendiri; yang dilarang hanya hapus diri sendiri).
+> `/` redirect ke `dashboard` (sudah login) atau `login`. `User` TIDAK `MustVerifyEmail` → grup
+> route web cukup `['auth']` (tanpa `verified`).
 
 **Dashboard & Monitoring**
 | Method | Path | Keterangan |
@@ -394,6 +403,13 @@ Android mengirim nilai berbeda dari yang disimpan di DB — ini hidden contract:
 | — | `ditugaskan` (hanya dari web admin) |
 
 Transisi hanya boleh searah: `ditugaskan` → `in_progress` → `done`. Loncat tidak diizinkan.
+
+**Sumber kebenaran nilai status DB = enum `App\Enums\ReportStatus`** (`Ditugaskan`,
+`SedangMemperbaiki`, `Selesai`). Di query & logika bisnis pakai `ReportStatus::X->value`, JANGAN
+tulis string literal (typo jadi bug senyap). Pemetaan Android `in_progress`/`done` → enum
+dilakukan di `TaskController`. Pengecualian: blok `match()` warna/label status di blade masih
+literal karena kelas Tailwind wajib berada di view (aturan scanner) — kandidat komponen
+`<x-status-pill>` di masa depan.
 
 ### Leaflet.js + Livewire — Pola Wajib
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ReportStatus;
 use App\Models\DamageReport;
 use App\Models\DamageType;
 use App\Models\Notification;
@@ -57,6 +58,13 @@ new #[Layout('layouts.app')] class extends Component
     public function technicians()
     {
         return User::where('role', 'teknisi')->orderBy('name')->get();
+    }
+
+    /** Opsi chip filter status: 'Semua' + seluruh status dari enum. */
+    #[Computed]
+    public function statusOptions(): array
+    {
+        return ['' => 'Semua'] + ReportStatus::options();
     }
 
     public function openCreate(): void
@@ -121,7 +129,7 @@ new #[Layout('layouts.app')] class extends Component
                 'address'        => $this->address,
                 'damage_type_id' => $this->damage_type_id,
                 'notes'          => $this->notes ?: null,
-                'status'         => 'ditugaskan',
+                'status'         => ReportStatus::Ditugaskan->value,
             ]);
 
             foreach ($this->selectedTechnicians as $techId) {
@@ -204,7 +212,7 @@ new #[Layout('layouts.app')] class extends Component
             class="input-sm w-56 rounded-full"
         />
         <div class="flex items-center gap-2 flex-wrap">
-            @foreach (['' => 'Semua', 'ditugaskan' => 'Ditugaskan', 'sedang_memperbaiki' => 'Sedang Memperbaiki', 'selesai' => 'Selesai'] as $val => $label)
+            @foreach ($this->statusOptions as $val => $label)
                 <button
                     wire:click="$set('filterStatus', '{{ $val }}')"
                     @class([

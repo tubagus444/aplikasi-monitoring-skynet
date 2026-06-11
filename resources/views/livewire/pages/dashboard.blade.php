@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ReportStatus;
 use App\Models\DamageReport;
 use App\Models\LocationLog;
 use App\Models\TaskAssignment;
@@ -19,19 +20,19 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function laporan_ditugaskan(): int
     {
-        return DamageReport::where('status', 'ditugaskan')->count();
+        return DamageReport::where('status', ReportStatus::Ditugaskan->value)->count();
     }
 
     #[Computed]
     public function sedangDikerjakan(): int
     {
-        return DamageReport::where('status', 'sedang_memperbaiki')->count();
+        return DamageReport::where('status', ReportStatus::SedangMemperbaiki->value)->count();
     }
 
     #[Computed]
     public function selesaiHariIni(): int
     {
-        return DamageReport::where('status', 'selesai')
+        return DamageReport::where('status', ReportStatus::Selesai->value)
             ->whereDate('updated_at', today())
             ->count();
     }
@@ -39,7 +40,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function selesaiKemarin(): int
     {
-        return DamageReport::where('status', 'selesai')
+        return DamageReport::where('status', ReportStatus::Selesai->value)
             ->whereDate('updated_at', today()->subDay())
             ->count();
     }
@@ -69,7 +70,7 @@ new #[Layout('layouts.app')] class extends Component
     public function mapLocations(): array
     {
         $assignments = TaskAssignment::with(['technician', 'report.damageType'])
-            ->whereHas('report', fn($q) => $q->where('status', 'sedang_memperbaiki'))
+            ->whereHas('report', fn($q) => $q->where('status', ReportStatus::SedangMemperbaiki->value))
             ->get();
 
         $seen   = [];
@@ -180,7 +181,7 @@ new #[Layout('layouts.app')] class extends Component
                                 default              => ['pill' => 'bg-base-200 text-base-content/60', 'dot' => 'bg-base-content/40', 'label' => $report->status],
                             };
                             // Laporan belum selesai dan sudah >24 jam dianggap urgen
-                            $isUrgen = $report->status !== 'selesai' && $report->created_at->diffInHours(now()) > 24;
+                            $isUrgen = $report->status !== \App\Enums\ReportStatus::Selesai->value && $report->created_at->diffInHours(now()) > 24;
                         @endphp
                         <div class="flex items-center justify-between py-3 gap-3 {{ $isUrgen ? 'opacity-100' : '' }}">
                             <div class="min-w-0 flex items-start gap-2">

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ReportStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -24,7 +25,7 @@ class DamageReport extends Model
      */
     public function scopeRiwayatSelesai(Builder $query, ?string $search = null, ?string $period = null): Builder
     {
-        return $query->where('status', 'selesai')
+        return $query->where('status', ReportStatus::Selesai->value)
             ->when($search, fn ($q) => $q->where(fn ($w) =>
                 $w->where('customer_name', 'like', "%{$search}%")
                   ->orWhere('address', 'like', "%{$search}%")

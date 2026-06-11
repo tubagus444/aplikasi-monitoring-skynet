@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ReportStatus;
 use App\Http\Controllers\Controller;
 use App\Models\TaskAssignment;
 use App\Models\WorkLog;
@@ -14,7 +15,7 @@ class TaskController extends Controller
     {
         $tasks = TaskAssignment::with(['report.damageType'])
             ->where('technician_id', $request->user()->id)
-            ->whereHas('report', fn($q) => $q->whereIn('status', ['ditugaskan', 'sedang_memperbaiki']))
+            ->whereHas('report', fn($q) => $q->whereIn('status', [ReportStatus::Ditugaskan->value, ReportStatus::SedangMemperbaiki->value]))
             ->latest('assigned_at')
             ->get()
             ->map(fn($a) => $this->formatTask($a));
@@ -44,27 +45,27 @@ class TaskController extends Controller
         $report = $assignment->report;
 
         $transition = [
-            'in_progress' => ['from' => 'ditugaskan',         'to' => 'sedang_memperbaiki'],
-            'done'        => ['from' => 'sedang_memperbaiki',  'to' => 'selesai'],
+            'in_progress' => ['from' => ReportStatus::Ditugaskan,        'to' => ReportStatus::SedangMemperbaiki],
+            'done'        => ['from' => ReportStatus::SedangMemperbaiki, 'to' => ReportStatus::Selesai],
         ][$request->status];
 
-        if ($report->status !== $transition['from']) {
+        if ($report->status !== $transition['from']->value) {
             return response()->json([
                 'message' => 'Perubahan status tidak valid dari status saat ini',
             ], 422);
         }
 
-        $report->update(['status' => $transition['to']]);
+        $report->update(['status' => $transition['to']->value]);
 
         WorkLog::create([
             'report_id'     => $report->id,
             'technician_id' => $request->user()->id,
-            'status'        => $transition['to'],
+            'status'        => $transition['to']->value,
         ]);
 
         return response()->json([
             'message' => 'Status diperbarui',
-            'status'  => $transition['to'],
+            'status'  => $transition['to']->value,
         ]);
     }
 
