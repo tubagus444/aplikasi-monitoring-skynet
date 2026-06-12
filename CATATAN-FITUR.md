@@ -19,7 +19,8 @@
 1. [Pembersihan otomatis `location_logs` (retensi data)](#1-pembersihan-otomatis-location_logs-retensi-data) 🟡
 2. [Tampilkan jejak rute GPS di Riwayat](#2-tampilkan-jejak-rute-gps-di-riwayat) 💡
 3. [Migrasi peta ke Google Maps SDK](#3-migrasi-peta-ke-google-maps-sdk) 🟡
-4. [Sudah dikerjakan (arsip)](#4-sudah-dikerjakan-arsip)
+4. [Standarisasi penamaan folder dan route Volt](#4-standarisasi-penamaan-folder-dan-route-volt) 🟡
+5. [Sudah dikerjakan (arsip)](#5-sudah-dikerjakan-arsip)
 
 ---
 
@@ -158,7 +159,70 @@ keputusan **billing Google vs OSM yang gratis**.
 
 ---
 
-## 4. Sudah dikerjakan (arsip)
+## 4. Standarisasi penamaan folder dan route Volt 🟡
+
+**Apa:** Menyelaraskan penamaan halaman admin yang sekarang campur. Tiap halaman punya 3 lapis nama
+(URL · file Volt · route name) yang idealnya konsisten, tapi `laporan`↔`reports`, `pengguna`↔`users`,
+`riwayat`↔`history` campur Indonesia/Inggris, dan sebagian file pakai subfolder+`index` sementara
+sebagian datar.
+
+| Konsep | URL | File Volt | Route name | Konsisten? |
+|---|---|---|---|---|
+| Dashboard | `/dashboard` | `dashboard.blade.php` | `dashboard` | ✅ |
+| Laporan | `/reports` | `laporan/index.blade.php` | `reports.index` | ❌ |
+| Monitoring | `/monitoring` | `monitoring.blade.php` | `monitoring` | ✅ |
+| Riwayat | `/history` | `riwayat.blade.php` | `history` | ❌ |
+| Pengguna | `/users` | `pengguna/index.blade.php` | `users.index` | ❌ |
+
+Dua masalah terpisah:
+- **A. Bahasa campur** — file ID (`laporan`) vs route EN (`reports`). Harus hafal pemetaan untuk tahu
+  "route `reports` itu file mana".
+- **B. Struktur folder campur** — `laporan/index.blade.php` & `pengguna/index.blade.php` pakai
+  subfolder+`index`, sedangkan `monitoring`/`riwayat`/`dashboard` datar.
+
+**Kenapa (dan kenapa ditunda):** Murni kerapian internal — **nol** perubahan fungsional, **nol** untuk
+user. Yang sekarang berfungsi sempurna. Karena `Volt::route('url', 'komponen')->name('nama')` memisah
+ketiga lapis, mismatch ini **tidak menimbulkan bug** — cuma "tax" kognitif kecil saat memetakan
+route→file. Manfaatnya kecil dibanding risiko menggerakkan file, makanya ditunda (bukan masalah,
+hanya estetika).
+
+**Bagaimana — rekomendasi: Inggris + ratakan, URL & route name dipertahankan.**
+
+Dua keputusan:
+1. **Arah bahasa → Inggris**: rename file `laporan`→`reports`, `pengguna`→`users`, `riwayat`→`history`.
+   URL sudah Inggris, jadi **URL tidak berubah** — hanya nama file internal. (Alternatif arah Indonesia
+   mengubah URL user-visible `/reports`→`/laporan` dst. — lebih berisik.)
+2. **Ratakan folder**: buang subfolder+`index`, mis. `laporan/index.blade.php` → `reports.blade.php`.
+
+Langkah konkret (blast radius kecil):
+1. `git mv` 3 file (folder `laporan/` & `pengguna/` jadi kosong → hilang sendiri):
+   - `livewire/pages/laporan/index.blade.php` → `livewire/pages/reports.blade.php`
+   - `livewire/pages/pengguna/index.blade.php` → `livewire/pages/users.blade.php`
+   - `livewire/pages/riwayat.blade.php` → `livewire/pages/history.blade.php`
+2. Update 3 argumen komponen di [routes/web.php](routes/web.php) (biarkan URL & `->name(...)` apa adanya):
+   - `'pages.laporan.index'` → `'pages.reports'`
+   - `'pages.pengguna.index'` → `'pages.users'`
+   - `'pages.riwayat'` → `'pages.history'`
+3. Update 1 string di [tests/Feature/Web/LaporanFormTest.php](tests/Feature/Web/LaporanFormTest.php):
+   `Volt::test('pages.laporan.index')` → `'pages.reports'`.
+4. `php artisan view:clear` lalu `php artisan test` — `PageRenderTest` membuktikan tiap URL tetap 200.
+
+**Yang TIDAK perlu disentuh** (kunci agar aman): route name (`reports.index`, `history`, `users.index`)
+& URL tetap → semua `route('reports.index')` dst. di [navigation](resources/views/livewire/layout/navigation.blade.php),
+[dashboard](resources/views/livewire/pages/dashboard.blade.php), [riwayat](resources/views/livewire/pages/riwayat.blade.php)
+**tetap jalan tanpa diubah**.
+
+**Catatan:**
+- **Prioritas terendah / boleh skip selamanya.** Tidak ada "bau kode" serius; estetika belaka.
+- Risiko utama: rename file Volt + **cache view** — `php artisan view:clear` **wajib** setelah rename,
+  kalau tidak Volt bisa memuat path lama. Test menangkap referensi yang putus.
+- Kalau mau konsistensi penuh, route name `reports.index`/`users.index` bisa disederhanakan jadi
+  `reports`/`users` (selaras `monitoring`/`history` yang tanpa `.index`) — tapi itu menambah update ke
+  `route()` di navigation & dashboard, jadi blast radius lebih besar. Tidak wajib.
+
+---
+
+## 5. Sudah dikerjakan (arsip)
 
 Catatan ringkas hal yang sudah selesai, biar konteksnya tidak hilang.
 
