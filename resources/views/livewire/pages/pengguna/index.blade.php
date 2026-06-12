@@ -20,6 +20,7 @@ new #[Layout('layouts.app')] class extends Component
     public bool $showDeleteModal = false;
     public ?int $editingId = null;
     public ?int $deletingId = null;
+    public ?string $deletingName = null;
 
     // Form fields
     public string $name = '';
@@ -109,7 +110,12 @@ new #[Layout('layouts.app')] class extends Component
         if ($id === auth()->id()) {
             return;
         }
+        $user = User::find($id);
+        if (! $user) {
+            return;
+        }
         $this->deletingId = $id;
+        $this->deletingName = $user->name;
         $this->showDeleteModal = true;
     }
 
@@ -118,6 +124,7 @@ new #[Layout('layouts.app')] class extends Component
         User::findOrFail($this->deletingId)->delete();
         $this->showDeleteModal = false;
         $this->deletingId = null;
+        $this->deletingName = null;
         unset($this->users);
         $this->success('Pengguna berhasil dihapus.');
     }
@@ -339,7 +346,7 @@ new #[Layout('layouts.app')] class extends Component
         <p class="text-sm text-base-content/70">
             Yakin ingin menghapus pengguna
             <strong class="text-base-content">
-                {{ $deletingId ? User::find($deletingId)?->name : '' }}
+                {{ $deletingName }}
             </strong>?
             Tindakan ini tidak dapat dibatalkan.
         </p>

@@ -109,7 +109,8 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 ```
 app/
   Actions/
-    SyncReportTechnicians.php       # Sync penugasan teknisi (diff-based) + notifikasi; dipanggil save() laporan
+    SyncReportTechnicians.php       # Sync penugasan teknisi (diff-based) + notifikasi; dipanggil save()
+                                    # laporan di dalam DB::transaction (simpan + sync atomik, anti setengah-jadi)
     GetActiveTechnicianLocations.php # Lokasi GPS terakhir teknisi aktif (1 query, anti N+1); dipakai monitoring & dashboard
   Http/Controllers/Api/ # AuthController, TaskController,
                         # LocationController, NotificationController
@@ -149,12 +150,13 @@ config/
 tests/
   Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
   Feature/Web/          # PageRenderTest (smoke halaman admin), StatusPillTest,
-                        # SyncReportTechniciansTest, LaporanFormTest (integrasi save),
+                        # SyncReportTechniciansTest,
+                        # LaporanFormTest (integrasi save + atomicity rollback + nama hapus),
                         # FilterScopingTest (regresi search+filter status/role tidak bocor),
                         # GetActiveTechnicianLocationsTest (lokasi teknisi aktif, anti N+1),
                         # CompletedAtTest (completed_at + durasiPenanganan terpusat + modal),
                         # UserDeletionPreservesHistoryTest (hapus user → riwayat utuh, FK null)
-                        # (54 test cases, semua pass — 28 API + 26 Web)
+                        # (56 test cases, semua pass — 28 API + 28 Web)
 ```
 
 ## Routes & Endpoint
@@ -435,6 +437,12 @@ laporan sudah berada di status tujuan (teknisi lain di tim sudah memindahkannya 
 dulu), permintaan dianggap sukses (200) tanpa transisi ulang & tanpa work log ganda —
 bukan ditolak 422. Konsekuensi yang disengaja: teknisi mana pun yang ditugaskan boleh
 memulai/menutup pekerjaan untuk seluruh tim. (Loncat status tetap ditolak 422.)
+
+Karena status milik bersama, `updateStatus` membungkus pengecekan + penulisan work log
+dalam `DB::transaction` dengan `lockForUpdate()` pada baris laporan — dua teknisi yang
+menekan tombol nyaris bersamaan tidak akan menghasilkan work log ganda (race terkunci di
+baris, bukan hanya ditebak idempotent). `lockForUpdate` no-op di SQLite (test) tapi query
+tetap jalan.
 
 **Sumber kebenaran nilai status DB = enum `App\Enums\ReportStatus`** (`Ditugaskan`,
 `SedangMemperbaiki`, `Selesai`). Di query & logika bisnis pakai `ReportStatus::X->value`, JANGAN

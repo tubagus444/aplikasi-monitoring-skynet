@@ -8,6 +8,7 @@ use App\Models\TaskAssignment;
 use App\Models\WorkLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TaskController extends Controller
 {
@@ -38,53 +39,58 @@ class TaskController extends Controller
             'status' => 'required|in:in_progress,done',
         ]);
 
-        $assignment = TaskAssignment::with('report')
-            ->where('technician_id', $request->user()->id)
+        $assignment = TaskAssignment::where('technician_id', $request->user()->id)
             ->findOrFail($id);
-
-        $report = $assignment->report;
 
         $transition = [
             'in_progress' => ['from' => ReportStatus::Ditugaskan,        'to' => ReportStatus::SedangMemperbaiki],
             'done'        => ['from' => ReportStatus::SedangMemperbaiki, 'to' => ReportStatus::Selesai],
         ][$request->status];
 
-        // Status milik bersama (level laporan). Bila teknisi lain di tim sudah
-        // memindahkan laporan ke status tujuan lebih dulu, permintaan ini
-        // bersifat idempotent: anggap sukses tanpa transisi & tanpa work log ganda.
-        if ($report->status === $transition['to']->value) {
-            return response()->json([
-                'message' => 'Status sudah sesuai',
-                'status'  => $report->status,
+        // Status milik bersama (level laporan) → dua teknisi bisa menekan tombol
+        // yang sama nyaris bersamaan. Kunci baris laporan di dalam transaksi agar
+        // pengecekan status & penulisan work log tidak balapan (cegah work log
+        // ganda). lockForUpdate tak berlaku di SQLite (test) tapi query tetap jalan.
+        return DB::transaction(function () use ($request, $assignment, $transition) {
+            $report = $assignment->report()->lockForUpdate()->first();
+
+            // Bila teknisi lain di tim sudah memindahkan laporan ke status tujuan
+            // lebih dulu, permintaan ini idempotent: anggap sukses tanpa transisi
+            // ulang & tanpa work log ganda.
+            if ($report->status === $transition['to']->value) {
+                return response()->json([
+                    'message' => 'Status sudah sesuai',
+                    'status'  => $report->status,
+                ]);
+            }
+
+            if ($report->status !== $transition['from']->value) {
+                return response()->json([
+                    'message' => 'Perubahan status tidak valid dari status saat ini',
+                ], 422);
+            }
+
+            $updates = ['status' => $transition['to']->value];
+
+            // Catat waktu selesai sebenarnya (sumber kebenaran, tahan terhadap edit
+            // laporan berikutnya yang ikut mengubah updated_at).
+            if ($transition['to'] === ReportStatus::Selesai) {
+                $updates['completed_at'] = now();
+            }
+
+            $report->update($updates);
+
+            WorkLog::create([
+                'report_id'     => $report->id,
+                'technician_id' => $request->user()->id,
+                'status'        => $transition['to']->value,
             ]);
-        }
 
-        if ($report->status !== $transition['from']->value) {
             return response()->json([
-                'message' => 'Perubahan status tidak valid dari status saat ini',
-            ], 422);
-        }
-
-        $updates = ['status' => $transition['to']->value];
-
-        // Catat waktu selesai sebenarnya (sumber kebenaran, tahan terhadap edit
-        // laporan berikutnya yang ikut mengubah updated_at).
-        if ($transition['to'] === ReportStatus::Selesai) {
-            $updates['completed_at'] = now();
-        }
-
-        $report->update($updates);
-
-        WorkLog::create([
-            'report_id'     => $report->id,
-            'technician_id' => $request->user()->id,
-            'status'        => $transition['to']->value,
-        ]);
-
-        return response()->json([
-            'message' => 'Status diperbarui',
-            'status'  => $transition['to']->value,
-        ]);
+                'message' => 'Status diperbarui',
+                'status'  => $transition['to']->value,
+            ]);
+        });
     }
 
     private function formatTask(TaskAssignment $assignment, bool $detailed = false): array

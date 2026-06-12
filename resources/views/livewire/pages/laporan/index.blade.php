@@ -5,6 +5,7 @@ use App\Enums\ReportStatus;
 use App\Models\DamageReport;
 use App\Models\DamageType;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -24,6 +25,7 @@ new #[Layout('layouts.app')] class extends Component
     public bool $showDeleteModal = false;
     public ?int $editingId = null;
     public ?int $deletingId = null;
+    public ?string $deletingName = null;
 
     // Form fields
     public string $customer_name = '';
@@ -96,27 +98,31 @@ new #[Layout('layouts.app')] class extends Component
             'notes'          => 'nullable|string',
         ]);
 
-        if ($this->editingId) {
-            $report = DamageReport::findOrFail($this->editingId);
-            $report->update([
-                'customer_name'  => $this->customer_name,
-                'address'        => $this->address,
-                'damage_type_id' => $this->damage_type_id,
-                'notes'          => $this->notes ?: null,
-            ]);
-        } else {
-            $report = DamageReport::create([
-                'created_by'     => auth()->id(),
-                'customer_name'  => $this->customer_name,
-                'address'        => $this->address,
-                'damage_type_id' => $this->damage_type_id,
-                'notes'          => $this->notes ?: null,
-                'status'         => ReportStatus::Ditugaskan->value,
-            ]);
-        }
+        // Simpan laporan + sinkron penugasan dalam satu transaksi: bila sync gagal
+        // di tengah jalan, laporan tidak tertinggal dalam keadaan setengah jadi.
+        DB::transaction(function () {
+            if ($this->editingId) {
+                $report = DamageReport::findOrFail($this->editingId);
+                $report->update([
+                    'customer_name'  => $this->customer_name,
+                    'address'        => $this->address,
+                    'damage_type_id' => $this->damage_type_id,
+                    'notes'          => $this->notes ?: null,
+                ]);
+            } else {
+                $report = DamageReport::create([
+                    'created_by'     => auth()->id(),
+                    'customer_name'  => $this->customer_name,
+                    'address'        => $this->address,
+                    'damage_type_id' => $this->damage_type_id,
+                    'notes'          => $this->notes ?: null,
+                    'status'         => ReportStatus::Ditugaskan->value,
+                ]);
+            }
 
-        // Sinkronkan penugasan teknisi + notifikasi teknisi baru (sumber tunggal)
-        (new SyncReportTechnicians)($report, $this->selectedTechnicians);
+            // Sinkronkan penugasan teknisi + notifikasi teknisi baru (sumber tunggal)
+            (new SyncReportTechnicians)($report, $this->selectedTechnicians);
+        });
 
         $this->showFormModal = false;
         unset($this->reports);
@@ -127,7 +133,12 @@ new #[Layout('layouts.app')] class extends Component
 
     public function confirmDelete(int $id): void
     {
+        $report = DamageReport::find($id);
+        if (! $report) {
+            return;
+        }
         $this->deletingId = $id;
+        $this->deletingName = $report->customer_name;
         $this->showDeleteModal = true;
     }
 
@@ -136,6 +147,7 @@ new #[Layout('layouts.app')] class extends Component
         DamageReport::findOrFail($this->deletingId)->delete();
         $this->showDeleteModal = false;
         $this->deletingId = null;
+        $this->deletingName = null;
         unset($this->reports);
         $this->success('Laporan berhasil dihapus.');
     }
@@ -361,7 +373,7 @@ new #[Layout('layouts.app')] class extends Component
         <p class="text-sm text-base-content/70">
             Yakin ingin menghapus laporan
             <strong class="text-base-content">
-                {{ $deletingId ? DamageReport::find($deletingId)?->customer_name : '' }}
+                {{ $deletingName }}
             </strong>?
             Tindakan ini tidak dapat dibatalkan.
         </p>
