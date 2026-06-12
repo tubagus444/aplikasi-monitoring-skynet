@@ -151,12 +151,12 @@ tests/
   Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
   Feature/Web/          # PageRenderTest (smoke halaman admin), StatusPillTest,
                         # SyncReportTechniciansTest,
-                        # LaporanFormTest (integrasi save + atomicity rollback + nama hapus),
+                        # LaporanFormTest (integrasi save + atomicity rollback + validasi teknisi + nama hapus),
                         # FilterScopingTest (regresi search+filter status/role tidak bocor),
                         # GetActiveTechnicianLocationsTest (lokasi teknisi aktif, anti N+1),
                         # CompletedAtTest (completed_at + durasiPenanganan terpusat + modal),
                         # UserDeletionPreservesHistoryTest (hapus user → riwayat utuh, FK null)
-                        # (56 test cases, semua pass — 28 API + 28 Web)
+                        # (57 test cases, semua pass — 28 API + 29 Web)
 ```
 
 ## Routes & Endpoint

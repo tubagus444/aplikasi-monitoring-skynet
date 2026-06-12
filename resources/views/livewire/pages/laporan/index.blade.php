@@ -96,6 +96,10 @@ new #[Layout('layouts.app')] class extends Component
             'address'        => 'required|string|max:255',
             'damage_type_id' => 'required|exists:damage_types,id',
             'notes'          => 'nullable|string',
+            // Tiap ID harus user dengan role teknisi — tolak ID palsu/manipulasi
+            // (cegah error 500 dari FK) & cegah admin diselundupkan jadi teknisi.
+            'selectedTechnicians'   => 'array',
+            'selectedTechnicians.*' => 'integer|exists:users,id,role,teknisi',
         ]);
 
         // Simpan laporan + sinkron penugasan dalam satu transaksi: bila sync gagal

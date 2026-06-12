@@ -88,6 +88,31 @@ class LaporanFormTest extends TestCase
         $this->assertSame(0, TaskAssignment::count());
     }
 
+    /**
+     * Hardening: selectedTechnicians bisa dimanipulasi dari browser. ID yang bukan
+     * teknisi (mis. admin) atau ID tak dikenal harus ditolak validasi — bukan lolos
+     * jadi penugasan, dan bukan error 500 dari FK violation.
+     */
+    public function test_validasi_menolak_teknisi_palsu_atau_admin(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $type  = DamageType::factory()->create();
+
+        $this->actingAs($admin);
+
+        Volt::test('pages.laporan.index')
+            ->set('customer_name', 'Citra')
+            ->set('address', 'Jl. Anggrek No. 2')
+            ->set('damage_type_id', $type->id)
+            ->set('selectedTechnicians', [$admin->id, 999999]) // admin + ID tak ada
+            ->call('save')
+            ->assertHasErrors('selectedTechnicians.0')  // admin: bukan role teknisi
+            ->assertHasErrors('selectedTechnicians.1'); // ID tak dikenal
+
+        $this->assertSame(0, DamageReport::count());
+        $this->assertSame(0, TaskAssignment::count());
+    }
+
     public function test_confirm_delete_menyimpan_nama_tanpa_query_di_view(): void
     {
         $this->actingAs(User::factory()->admin()->create());
