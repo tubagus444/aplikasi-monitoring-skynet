@@ -121,6 +121,10 @@ app/
                         # (jangan pakai updated_at untuk waktu/durasi/filter selesai);
                         # $report->waktu_selesai (accessor) & ->durasiPenanganan($singkat)
                         # = satu sumber tampilan waktu & durasi (riwayat + PDF)
+                        # FK ke users: created_by (DamageReport) & technician_id (WorkLog)
+                        # = nullOnDelete → hapus pengguna TIDAK menghapus riwayat; kolomnya
+                        # jadi NULL (tampil "—"/"Teknisi dihapus"). task_assignments &
+                        # location_logs sengaja TETAP cascade (penanda live, bukan arsip)
   Enums/
     ReportStatus.php    # Sumber kebenaran status laporan (dipakai PHP & query, hindari literal)
   Observers/
@@ -148,8 +152,9 @@ tests/
                         # SyncReportTechniciansTest, LaporanFormTest (integrasi save),
                         # FilterScopingTest (regresi search+filter status/role tidak bocor),
                         # GetActiveTechnicianLocationsTest (lokasi teknisi aktif, anti N+1),
-                        # CompletedAtTest (completed_at + durasiPenanganan terpusat + modal)
-                        # (51 test cases, semua pass — 28 API + 23 Web)
+                        # CompletedAtTest (completed_at + durasiPenanganan terpusat + modal),
+                        # UserDeletionPreservesHistoryTest (hapus user → riwayat utuh, FK null)
+                        # (54 test cases, semua pass — 28 API + 26 Web)
 ```
 
 ## Routes & Endpoint

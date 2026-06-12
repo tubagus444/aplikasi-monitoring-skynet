@@ -252,6 +252,8 @@ new #[Layout('layouts.app')] class extends Component
                                 </div>
                                 @if($log->technician)
                                     <p class="text-xs text-base-content/50">{{ $log->technician->name }}</p>
+                                @else
+                                    <p class="text-xs text-base-content/30 italic">Teknisi dihapus</p>
                                 @endif
                                 @if($log->description)
                                     <p class="text-xs text-base-content/60 mt-0.5">{{ $log->description }}</p>
