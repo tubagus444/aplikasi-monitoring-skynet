@@ -117,4 +117,61 @@ class TaskTest extends TestCase
             'status'        => 'sedang_memperbaiki',
         ]);
     }
+
+    public function test_teknisi_kedua_mulai_saat_laporan_sudah_diperbaiki_bersifat_idempotent(): void
+    {
+        // Status milik bersama: teknisi A sudah memulai (laporan sedang_memperbaiki),
+        // teknisi B yang ditugaskan ke laporan sama tidak boleh ditolak 422.
+        $teknisiB   = User::factory()->teknisi()->create();
+        $report     = DamageReport::factory()->sedangDiperbaiki()->create();
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisiB->id]);
+
+        $this->actingAs($teknisiB, 'sanctum')
+            ->postJson("/api/tasks/{$assignment->id}/status", ['status' => 'in_progress'])
+            ->assertOk()
+            ->assertJson(['status' => 'sedang_memperbaiki']);
+
+        // Tidak membuat work log ganda untuk transisi yang sudah terjadi
+        $this->assertDatabaseMissing('work_logs', ['technician_id' => $teknisiB->id]);
+    }
+
+    public function test_menyelesaikan_laporan_mengisi_completed_at(): void
+    {
+        $teknisi    = User::factory()->teknisi()->create();
+        $report     = DamageReport::factory()->sedangDiperbaiki()->create();
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $this->assertNull($report->completed_at); // belum selesai → belum ada waktu selesai
+
+        $this->actingAs($teknisi, 'sanctum')
+            ->postJson("/api/tasks/{$assignment->id}/status", ['status' => 'done'])
+            ->assertOk();
+
+        $this->assertNotNull($report->refresh()->completed_at);
+    }
+
+    public function test_mulai_memperbaiki_tidak_mengisi_completed_at(): void
+    {
+        $teknisi    = User::factory()->teknisi()->create();
+        $report     = DamageReport::factory()->create(['status' => 'ditugaskan']);
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $this->actingAs($teknisi, 'sanctum')
+            ->postJson("/api/tasks/{$assignment->id}/status", ['status' => 'in_progress'])
+            ->assertOk();
+
+        $this->assertNull($report->refresh()->completed_at);
+    }
+
+    public function test_tandai_selesai_saat_laporan_sudah_selesai_bersifat_idempotent(): void
+    {
+        $teknisi    = User::factory()->teknisi()->create();
+        $report     = DamageReport::factory()->selesai()->create();
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $this->actingAs($teknisi, 'sanctum')
+            ->postJson("/api/tasks/{$assignment->id}/status", ['status' => 'done'])
+            ->assertOk()
+            ->assertJson(['status' => 'selesai']);
+    }
 }

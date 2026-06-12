@@ -6,8 +6,9 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\TaskController;
 use Illuminate\Support\Facades\Route;
 
-// Autentikasi
-Route::post('/auth/login', [AuthController::class, 'login']);
+// Autentikasi — throttle cegah brute-force (login web sudah dibatasi 5x via LoginForm)
+Route::post('/auth/login', [AuthController::class, 'login'])
+    ->middleware('throttle:5,1');
 
 Route::middleware('auth:sanctum')->group(function () {
     // Autentikasi

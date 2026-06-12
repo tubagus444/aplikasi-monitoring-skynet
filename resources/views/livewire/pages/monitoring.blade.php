@@ -1,8 +1,6 @@
 <?php
 
-use App\Enums\ReportStatus;
-use App\Models\LocationLog;
-use App\Models\TaskAssignment;
+use App\Actions\GetActiveTechnicianLocations;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -17,37 +15,8 @@ new #[Layout('layouts.app')] class extends Component
 
     public function loadLocations(): void
     {
-        $assignments = TaskAssignment::with(['technician', 'report.damageType'])
-            ->whereHas('report', fn($q) => $q->where('status', ReportStatus::SedangMemperbaiki->value))
-            ->get();
-
-        $seen   = [];
-        $result = [];
-
-        foreach ($assignments as $assignment) {
-            $techId = $assignment->technician_id;
-            if (in_array($techId, $seen)) continue;
-            $seen[] = $techId;
-
-            $latest = LocationLog::where('technician_id', $techId)
-                ->where('report_id', $assignment->report_id)
-                ->latest('recorded_at')
-                ->first();
-
-            $result[] = [
-                'id'          => $techId,
-                'name'        => $assignment->technician->name,
-                'customer'    => $assignment->report->customer_name,
-                'address'     => $assignment->report->address,
-                'damage_type' => $assignment->report->damageType->name,
-                'latitude'    => $latest?->latitude,
-                'longitude'   => $latest?->longitude,
-                'last_update' => $latest?->recorded_at?->diffForHumans() ?? null,
-            ];
-        }
-
-        $this->technicianLocations = $result;
-        $this->dispatch('locations-updated', locations: $result);
+        $this->technicianLocations = (new GetActiveTechnicianLocations)();
+        $this->dispatch('locations-updated', locations: $this->technicianLocations);
     }
 }; ?>
 

@@ -32,8 +32,10 @@ new #[Layout('layouts.app')] class extends Component
     public function users()
     {
         return User::when($this->search, fn($q) =>
-                $q->where('name', 'like', "%{$this->search}%")
-                  ->orWhere('email', 'like', "%{$this->search}%")
+                $q->where(fn($w) =>
+                    $w->where('name', 'like', "%{$this->search}%")
+                      ->orWhere('email', 'like', "%{$this->search}%")
+                )
             )
             ->when($this->filterRole, fn($q) =>
                 $q->where('role', $this->filterRole)

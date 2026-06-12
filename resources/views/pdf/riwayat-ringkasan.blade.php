@@ -43,8 +43,6 @@
             <tbody>
                 @foreach($reports as $i => $report)
                     @php
-                        $d = $report->created_at->diff($report->updated_at);
-                        $durasi = $d->days > 0 ? $d->days . ' hari' : ($d->h > 0 ? $d->h . ' jam' : $d->i . ' mnt');
                         $teknisi = $report->taskAssignments->pluck('technician.name')->filter()->join(', ');
                     @endphp
                     <tr>
@@ -53,8 +51,8 @@
                         <td>{{ $report->address }}</td>
                         <td>{{ $report->damageType?->name ?? '—' }}</td>
                         <td>{{ $teknisi ?: '—' }}</td>
-                        <td>{{ $report->updated_at->format('d/m/Y H:i') }}</td>
-                        <td>{{ $durasi }}</td>
+                        <td>{{ $report->waktu_selesai->format('d/m/Y H:i') }}</td>
+                        <td>{{ $report->durasiPenanganan(singkat: true) }}</td>
                     </tr>
                 @endforeach
             </tbody>

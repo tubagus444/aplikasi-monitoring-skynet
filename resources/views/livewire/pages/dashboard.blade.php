@@ -1,9 +1,8 @@
 <?php
 
+use App\Actions\GetActiveTechnicianLocations;
 use App\Enums\ReportStatus;
 use App\Models\DamageReport;
-use App\Models\LocationLog;
-use App\Models\TaskAssignment;
 use App\Models\User;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -33,7 +32,7 @@ new #[Layout('layouts.app')] class extends Component
     public function selesaiHariIni(): int
     {
         return DamageReport::where('status', ReportStatus::Selesai->value)
-            ->whereDate('updated_at', today())
+            ->whereDate('completed_at', today())
             ->count();
     }
 
@@ -41,7 +40,7 @@ new #[Layout('layouts.app')] class extends Component
     public function selesaiKemarin(): int
     {
         return DamageReport::where('status', ReportStatus::Selesai->value)
-            ->whereDate('updated_at', today()->subDay())
+            ->whereDate('completed_at', today()->subDay())
             ->count();
     }
 
@@ -69,36 +68,11 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function mapLocations(): array
     {
-        $assignments = TaskAssignment::with(['technician', 'report.damageType'])
-            ->whereHas('report', fn($q) => $q->where('status', ReportStatus::SedangMemperbaiki->value))
-            ->get();
-
-        $seen   = [];
-        $result = [];
-
-        foreach ($assignments as $assignment) {
-            $techId = $assignment->technician_id;
-            if (in_array($techId, $seen)) continue;
-            $seen[] = $techId;
-
-            $latest = LocationLog::where('technician_id', $techId)
-                ->where('report_id', $assignment->report_id)
-                ->latest('recorded_at')
-                ->first();
-
-            if (! $latest) continue;
-
-            $result[] = [
-                'id'          => $techId,
-                'name'        => $assignment->technician->name,
-                'customer'    => $assignment->report->customer_name,
-                'damage_type' => $assignment->report->damageType->name,
-                'latitude'    => $latest->latitude,
-                'longitude'   => $latest->longitude,
-            ];
-        }
-
-        return $result;
+        // Peta dashboard hanya menampilkan teknisi yang sudah mengirim GPS.
+        return array_values(array_filter(
+            (new GetActiveTechnicianLocations)(),
+            fn ($tech) => $tech['latitude'] !== null,
+        ));
     }
 }; ?>
 

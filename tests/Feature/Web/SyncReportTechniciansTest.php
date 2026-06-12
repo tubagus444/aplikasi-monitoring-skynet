@@ -71,4 +71,25 @@ class SyncReportTechniciansTest extends TestCase
             $report->taskAssignments()->pluck('technician_id')->all()
         );
     }
+
+    public function test_penugasan_lama_tidak_dibuat_ulang_saat_sync_diff_based(): void
+    {
+        $report = DamageReport::factory()->create();
+        $a = User::factory()->teknisi()->create();
+        $b = User::factory()->teknisi()->create();
+
+        (new SyncReportTechnicians)($report, [$a->id]);
+        $awal = $report->taskAssignments()->where('technician_id', $a->id)->first();
+
+        // Sync ulang menambah teknisi b — penugasan a TIDAK boleh dihapus & dibuat ulang
+        (new SyncReportTechnicians)($report, [$a->id, $b->id]);
+        $sesudah = $report->taskAssignments()->where('technician_id', $a->id)->first();
+
+        // Baris yang sama (PK tetap) membuktikan sync diff-based, bukan wipe-recreate
+        $this->assertEquals($awal->id, $sesudah->id);
+        $this->assertEquals(
+            $awal->assigned_at->toIso8601String(),
+            $sesudah->assigned_at->toIso8601String(),
+        );
+    }
 }

@@ -109,20 +109,25 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 ```
 app/
   Actions/
-    SyncReportTechnicians.php  # Sync penugasan teknisi + notifikasi; dipanggil save() laporan
+    SyncReportTechnicians.php       # Sync penugasan teknisi (diff-based) + notifikasi; dipanggil save() laporan
+    GetActiveTechnicianLocations.php # Lokasi GPS terakhir teknisi aktif (1 query, anti N+1); dipakai monitoring & dashboard
   Http/Controllers/Api/ # AuthController, TaskController,
                         # LocationController, NotificationController
   Http/Controllers/     # ReportExportController (ekspor PDF — web, bukan Volt)
   Models/               # DamageReport, DamageType, TaskAssignment,
                         # WorkLog, LocationLog, Notification, User
-                        # DamageReport: scope riwayatSelesai($search,$period)
+                        # DamageReport: scope riwayatSelesai($search,$period);
+                        # kolom completed_at = sumber kebenaran WAKTU SELESAI
+                        # (jangan pakai updated_at untuk waktu/durasi/filter selesai);
+                        # $report->waktu_selesai (accessor) & ->durasiPenanganan($singkat)
+                        # = satu sumber tampilan waktu & durasi (riwayat + PDF)
   Enums/
     ReportStatus.php    # Sumber kebenaran status laporan (dipakai PHP & query, hindari literal)
   Observers/
     NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
   web.php               # Volt routes (admin panel) + history/export + redirect `/`
-  api.php               # 8 API endpoints (Android via Sanctum)
+  api.php               # 8 API endpoints (Android via Sanctum); /auth/login throttle:5,1
 resources/views/livewire/pages/
   dashboard.blade.php
   laporan/index.blade.php
@@ -140,8 +145,11 @@ config/
 tests/
   Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
   Feature/Web/          # PageRenderTest (smoke halaman admin), StatusPillTest,
-                        # SyncReportTechniciansTest, LaporanFormTest (integrasi save)
-                        # (35 test cases, semua pass — 23 API + 12 Web)
+                        # SyncReportTechniciansTest, LaporanFormTest (integrasi save),
+                        # FilterScopingTest (regresi search+filter status/role tidak bocor),
+                        # GetActiveTechnicianLocationsTest (lokasi teknisi aktif, anti N+1),
+                        # CompletedAtTest (completed_at + durasiPenanganan terpusat + modal)
+                        # (51 test cases, semua pass — 28 API + 23 Web)
 ```
 
 ## Routes & Endpoint
@@ -247,7 +255,8 @@ tests/
   interaktif. Lihat subbagian "Ekspor PDF (dompdf)" di bawah
 - Logika bisnis kompleks/berulang dikeluarkan ke **Action class** di `app/Actions/`
   (mis. `SyncReportTechnicians` — sync penugasan + notifikasi, dipakai bersama alur buat
-  & edit laporan), bukan ditanam di dalam method Volt component
+  & edit laporan; `GetActiveTechnicianLocations` — lokasi GPS teknisi aktif, dipakai bersama
+  monitoring & dashboard), bukan ditanam di dalam method Volt component
 - API untuk Android menggunakan prefix `/api` dengan auth `sanctum`
 - Role middleware ada di `app/Http/Middleware/RoleMiddleware.php`
 - Gunakan `composer dev` untuk menjalankan semua service, bukan `php artisan serve` saja
@@ -413,6 +422,14 @@ Android mengirim nilai berbeda dari yang disimpan di DB — ini hidden contract:
 | — | `ditugaskan` (hanya dari web admin) |
 
 Transisi hanya boleh searah: `ditugaskan` → `in_progress` → `done`. Loncat tidak diizinkan.
+
+**Status milik bersama (level laporan), bukan per-teknisi.** Satu laporan bisa
+ditugaskan ke beberapa teknisi; status menggambarkan keadaan PEKERJAAN, bukan tiap
+individu. Karena itu `TaskController::updateStatus` bersifat **idempotent**: bila
+laporan sudah berada di status tujuan (teknisi lain di tim sudah memindahkannya lebih
+dulu), permintaan dianggap sukses (200) tanpa transisi ulang & tanpa work log ganda —
+bukan ditolak 422. Konsekuensi yang disengaja: teknisi mana pun yang ditugaskan boleh
+memulai/menutup pekerjaan untuk seluruh tim. (Loncat status tetap ditolak 422.)
 
 **Sumber kebenaran nilai status DB = enum `App\Enums\ReportStatus`** (`Ditugaskan`,
 `SedangMemperbaiki`, `Selesai`). Di query & logika bisnis pakai `ReportStatus::X->value`, JANGAN

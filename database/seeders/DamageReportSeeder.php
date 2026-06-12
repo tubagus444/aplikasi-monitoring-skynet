@@ -64,8 +64,9 @@ class DamageReportSeeder extends Seeder
         foreach ($reports as $report) {
             DB::table('damage_reports')->insert([
                 ...$report,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'completed_at' => $report['status'] === 'selesai' ? now() : null,
+                'created_at'   => now(),
+                'updated_at'   => now(),
             ]);
         }
     }

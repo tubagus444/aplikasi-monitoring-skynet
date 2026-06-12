@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ReportStatus;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,7 +18,15 @@ class DamageReport extends Model
         'address',
         'notes',
         'status',
+        'completed_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'completed_at' => 'datetime',
+        ];
+    }
 
     /**
      * Riwayat laporan yang sudah selesai, dengan filter pencarian & periode.
@@ -31,13 +40,38 @@ class DamageReport extends Model
                   ->orWhere('address', 'like', "%{$search}%")
             ))
             ->when($period === 'minggu', fn ($q) =>
-                $q->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()])
+                $q->whereBetween('completed_at', [now()->startOfWeek(), now()->endOfWeek()])
             )
             ->when($period === 'bulan', fn ($q) =>
-                $q->whereMonth('updated_at', now()->month)
-                  ->whereYear('updated_at', now()->year)
+                $q->whereMonth('completed_at', now()->month)
+                  ->whereYear('completed_at', now()->year)
             )
-            ->latest('updated_at');
+            ->latest('completed_at');
+    }
+
+    /**
+     * Waktu selesai efektif: `completed_at` (sumber kebenaran), dengan fallback
+     * ke `updated_at` untuk data lama yang belum sempat ter-backfill.
+     */
+    protected function waktuSelesai(): Attribute
+    {
+        return Attribute::get(fn () => $this->completed_at ?? $this->updated_at);
+    }
+
+    /**
+     * Durasi penanganan (dibuat → selesai) dalam teks ringkas. Satu sumber untuk
+     * tabel/modal riwayat & ekspor PDF. $singkat memakai "mnt" (kolom sempit),
+     * selain itu "menit".
+     */
+    public function durasiPenanganan(bool $singkat = false): string
+    {
+        $d = $this->created_at->diff($this->waktu_selesai);
+
+        return match (true) {
+            $d->days > 0 => $d->days . ' hari',
+            $d->h > 0    => $d->h . ' jam',
+            default      => $d->i . ($singkat ? ' mnt' : ' menit'),
+        };
     }
 
     // Relasi

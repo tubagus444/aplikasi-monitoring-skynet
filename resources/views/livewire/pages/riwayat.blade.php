@@ -138,18 +138,10 @@ new #[Layout('layouts.app')] class extends Component
                                     @endif
                                 </td>
                                 <td class="text-xs text-base-content/60">
-                                    {{ $report->updated_at->format('d/m/Y H:i') }}
+                                    {{ $report->waktu_selesai->format('d/m/Y H:i') }}
                                 </td>
                                 <td class="text-xs text-base-content/50">
-                                    @php
-                                        $durasi = $report->created_at->diff($report->updated_at);
-                                        if ($durasi->days > 0)
-                                            echo $durasi->days . ' hari';
-                                        elseif ($durasi->h > 0)
-                                            echo $durasi->h . ' jam';
-                                        else
-                                            echo $durasi->i . ' mnt';
-                                    @endphp
+                                    {{ $report->durasiPenanganan(singkat: true) }}
                                 </td>
                                 <td>
                                     <x-mary-button
@@ -173,10 +165,8 @@ new #[Layout('layouts.app')] class extends Component
         @if($this->detailReport)
             @php
                 $report = $this->detailReport;
-                $durasi = $report->created_at->diff($report->updated_at);
-                $durasiText = $durasi->days > 0
-                    ? $durasi->days . ' hari'
-                    : ($durasi->h > 0 ? $durasi->h . ' jam' : $durasi->i . ' menit');
+                $selesaiAt = $report->waktu_selesai;
+                $durasiText = $report->durasiPenanganan();
             @endphp
 
             {{-- Header ringkas: identitas laporan + status --}}
@@ -186,10 +176,7 @@ new #[Layout('layouts.app')] class extends Component
                     <h3 class="text-lg font-bold text-base-content truncate">{{ $report->customer_name }}</h3>
                     <p class="text-sm text-base-content/60">{{ $report->damageType->name }}</p>
                 </div>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 bg-success/15 text-success">
-                    <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
-                    Selesai
-                </span>
+                <x-status-pill :status="$report->status" class="shrink-0" />
             </div>
 
             {{-- Chip ringkas: waktu selesai & durasi penanganan --}}
@@ -199,7 +186,7 @@ new #[Layout('layouts.app')] class extends Component
                         <x-mary-icon name="o-check-circle" class="w-3.5 h-3.5" />
                         <p class="text-xs">Waktu Selesai</p>
                     </div>
-                    <p class="text-sm font-semibold">{{ $report->updated_at->format('d/m/Y H:i') }}</p>
+                    <p class="text-sm font-semibold">{{ $selesaiAt->format('d/m/Y H:i') }}</p>
                 </div>
                 <div class="rounded-xl bg-base-200/60 p-3">
                     <div class="flex items-center gap-1.5 text-base-content/40 mb-1">

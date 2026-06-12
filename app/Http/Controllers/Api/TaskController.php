@@ -49,13 +49,31 @@ class TaskController extends Controller
             'done'        => ['from' => ReportStatus::SedangMemperbaiki, 'to' => ReportStatus::Selesai],
         ][$request->status];
 
+        // Status milik bersama (level laporan). Bila teknisi lain di tim sudah
+        // memindahkan laporan ke status tujuan lebih dulu, permintaan ini
+        // bersifat idempotent: anggap sukses tanpa transisi & tanpa work log ganda.
+        if ($report->status === $transition['to']->value) {
+            return response()->json([
+                'message' => 'Status sudah sesuai',
+                'status'  => $report->status,
+            ]);
+        }
+
         if ($report->status !== $transition['from']->value) {
             return response()->json([
                 'message' => 'Perubahan status tidak valid dari status saat ini',
             ], 422);
         }
 
-        $report->update(['status' => $transition['to']->value]);
+        $updates = ['status' => $transition['to']->value];
+
+        // Catat waktu selesai sebenarnya (sumber kebenaran, tahan terhadap edit
+        // laporan berikutnya yang ikut mengubah updated_at).
+        if ($transition['to'] === ReportStatus::Selesai) {
+            $updates['completed_at'] = now();
+        }
+
+        $report->update($updates);
 
         WorkLog::create([
             'report_id'     => $report->id,

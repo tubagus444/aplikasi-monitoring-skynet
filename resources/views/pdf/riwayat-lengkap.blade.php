@@ -56,8 +56,6 @@
     @else
         @foreach($reports as $i => $report)
             @php
-                $d = $report->created_at->diff($report->updated_at);
-                $durasi = $d->days > 0 ? $d->days . ' hari' : ($d->h > 0 ? $d->h . ' jam' : $d->i . ' menit');
                 $teknisi = $report->taskAssignments->pluck('technician.name')->filter()->join(', ');
             @endphp
             <div class="report">
@@ -76,10 +74,10 @@
                         <td class="label">Teknisi</td><td class="sep">:</td><td>{{ $teknisi ?: '—' }}</td>
                     </tr>
                     <tr>
-                        <td class="label">Waktu Selesai</td><td class="sep">:</td><td>{{ $report->updated_at->format('d/m/Y H:i') }}</td>
+                        <td class="label">Waktu Selesai</td><td class="sep">:</td><td>{{ $report->waktu_selesai->format('d/m/Y H:i') }}</td>
                     </tr>
                     <tr>
-                        <td class="label">Durasi</td><td class="sep">:</td><td>{{ $durasi }}</td>
+                        <td class="label">Durasi</td><td class="sep">:</td><td>{{ $report->durasiPenanganan() }}</td>
                     </tr>
                     @if($report->notes)
                         <tr>

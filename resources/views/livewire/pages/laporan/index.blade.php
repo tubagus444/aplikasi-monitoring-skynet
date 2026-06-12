@@ -37,8 +37,10 @@ new #[Layout('layouts.app')] class extends Component
     {
         return DamageReport::with(['damageType', 'taskAssignments.technician'])
             ->when($this->search, fn($q) =>
-                $q->where('customer_name', 'like', "%{$this->search}%")
-                  ->orWhere('address', 'like', "%{$this->search}%")
+                $q->where(fn($w) =>
+                    $w->where('customer_name', 'like', "%{$this->search}%")
+                      ->orWhere('address', 'like', "%{$this->search}%")
+                )
             )
             ->when($this->filterStatus, fn($q) =>
                 $q->where('status', $this->filterStatus)

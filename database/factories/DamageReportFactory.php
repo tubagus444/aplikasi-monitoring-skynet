@@ -27,6 +27,9 @@ class DamageReportFactory extends Factory
 
     public function selesai(): static
     {
-        return $this->state(['status' => 'selesai']);
+        return $this->state(fn () => [
+            'status'       => 'selesai',
+            'completed_at' => now(),
+        ]);
     }
 }

@@ -74,4 +74,23 @@ class AuthTest extends TestCase
         $this->getJson('/api/notifications')->assertUnauthorized();
         $this->postJson('/api/location')->assertUnauthorized();
     }
+
+    public function test_login_api_dibatasi_rate_limit(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+
+        // 5 percobaan gagal masih dilayani (401)
+        foreach (range(1, 5) as $i) {
+            $this->postJson('/api/auth/login', [
+                'email'    => $teknisi->email,
+                'password' => 'salah',
+            ])->assertUnauthorized();
+        }
+
+        // Percobaan ke-6 diblokir throttle (429 Too Many Requests)
+        $this->postJson('/api/auth/login', [
+            'email'    => $teknisi->email,
+            'password' => 'salah',
+        ])->assertStatus(429);
+    }
 }
