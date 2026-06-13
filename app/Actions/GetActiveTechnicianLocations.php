@@ -12,9 +12,13 @@ use App\Models\TaskAssignment;
  * pertamanya). Dipakai bersama oleh halaman Monitoring (poll 10 detik) dan
  * peta dashboard agar logikanya satu sumber.
  *
- * Titik terakhir per (teknisi, laporan) diambil dalam SATU query lalu
- * dikelompokkan di memori — menghindari N+1 (sebelumnya 1 query LocationLog
- * per teknisi pada tiap poll).
+ * HANYA titik terakhir per (teknisi, laporan) yang ditarik ke memori, lewat
+ * subquery berkorelasi `recorded_at = MAX(recorded_at)` tiap pasangan — BUKAN
+ * seluruh jejak GPS. Jejak bisa membengkak ribuan baris selama sesi kerja,
+ * sementara yang dipakai hanya titik paling baru; menariknya semua hanya untuk
+ * dibuang itulah yang dihindari (query ini jalan tiap 10 detik). Tetap SATU
+ * query (anti N+1, jumlah query konstan walau teknisi bertambah) dan ditopang
+ * index (technician_id, report_id, recorded_at).
  */
 class GetActiveTechnicianLocations
 {
@@ -33,10 +37,19 @@ class GetActiveTechnicianLocations
             return [];
         }
 
-        // Titik terakhir per (teknisi, laporan) — satu query untuk semua teknisi.
+        // Titik TERAKHIR per (teknisi, laporan) dalam satu query: subquery
+        // berkorelasi memilih baris ber-recorded_at maksimum tiap pasangan,
+        // jadi tabel sebesar apa pun hanya menyumbang ~1 baris per teknisi
+        // (bukan seluruh jejak GPS). Portabel di MySQL & SQLite (test).
+        $table = (new LocationLog)->getTable();
+
         $latestByPair = LocationLog::whereIn('technician_id', $assignments->pluck('technician_id'))
             ->whereIn('report_id', $assignments->pluck('report_id'))
-            ->orderByDesc('recorded_at')
+            ->whereRaw("recorded_at = (
+                select max(recorded_at) from {$table} as latest
+                where latest.technician_id = {$table}.technician_id
+                  and latest.report_id = {$table}.report_id
+            )")
             ->get()
             ->groupBy(fn ($log) => $log->technician_id . '-' . $log->report_id);
 
