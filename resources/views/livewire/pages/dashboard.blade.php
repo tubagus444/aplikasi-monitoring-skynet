@@ -18,7 +18,7 @@ new #[Layout('layouts.app')] class extends Component
     }
 
     #[Computed]
-    public function laporan_ditugaskan(): int
+    public function laporanDitugaskan(): int
     {
         return DamageReport::where('status', ReportStatus::Ditugaskan->value)->count();
     }
@@ -91,7 +91,7 @@ new #[Layout('layouts.app')] class extends Component
             // Chip ikon memakai warna solid (bg-* + *-content) untuk kontras kuat.
             // Tulis kelas warna sebagai literal lengkap agar terdeteksi scanner Tailwind.
             $stats = [
-                ['label' => 'Total Laporan',     'value' => $this->totalLaporan,    'sub' => $this->laporan_ditugaskan . ' belum ditugaskan', 'icon' => 'o-document-text',      'chip' => 'bg-primary text-primary-content'],
+                ['label' => 'Total Laporan',     'value' => $this->totalLaporan,    'sub' => $this->laporanDitugaskan . ' belum ditugaskan', 'icon' => 'o-document-text',      'chip' => 'bg-primary text-primary-content'],
                 ['label' => 'Sedang Dikerjakan', 'value' => $this->sedangDikerjakan, 'sub' => 'laporan aktif',                                 'icon' => 'o-wrench-screwdriver', 'chip' => 'bg-info text-info-content'],
                 ['label' => 'Selesai Hari Ini',  'value' => $this->selesaiHariIni,   'sub' => 'kemarin: ' . $this->selesaiKemarin,            'icon' => 'o-check-circle',       'chip' => 'bg-success text-success-content'],
                 ['label' => 'Total Teknisi',     'value' => $this->totalTeknisi,     'sub' => 'teknisi terdaftar',                             'icon' => 'o-user-group',         'chip' => 'bg-secondary text-secondary-content'],
