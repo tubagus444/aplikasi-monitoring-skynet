@@ -122,6 +122,17 @@ new #[Layout('layouts.app')] class extends Component
 
     public function deleteUser(): void
     {
+        // Pertahankan proteksi "tak boleh hapus diri sendiri" di sini juga, bukan
+        // hanya di confirmDelete(): properti Livewire bisa dimanipulasi dari klien
+        // ($set deletingId), jadi guard harus ditegakkan saat aksi destruktif jalan.
+        if ($this->deletingId === auth()->id()) {
+            $this->showDeleteModal = false;
+            $this->deletingId = null;
+            $this->deletingName = null;
+            $this->error('Tidak bisa menghapus akun sendiri.');
+            return;
+        }
+
         User::findOrFail($this->deletingId)->delete();
         $this->showDeleteModal = false;
         $this->deletingId = null;
