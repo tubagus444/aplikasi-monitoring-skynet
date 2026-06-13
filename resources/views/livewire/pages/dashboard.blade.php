@@ -2,6 +2,7 @@
 
 use App\Actions\GetActiveTechnicianLocations;
 use App\Enums\ReportStatus;
+use App\Enums\UserRole;
 use App\Models\DamageReport;
 use App\Models\User;
 use Livewire\Attributes\Computed;
@@ -47,7 +48,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function totalTeknisi(): int
     {
-        return User::where('role', 'teknisi')->count();
+        return User::where('role', UserRole::Teknisi->value)->count();
     }
 
     #[Computed]

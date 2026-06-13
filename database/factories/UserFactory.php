@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -45,11 +46,11 @@ class UserFactory extends Factory
 
     public function teknisi(): static
     {
-        return $this->state(['role' => 'teknisi']);
+        return $this->state(['role' => UserRole::Teknisi->value]);
     }
 
     public function admin(): static
     {
-        return $this->state(['role' => 'admin']);
+        return $this->state(['role' => UserRole::Admin->value]);
     }
 }

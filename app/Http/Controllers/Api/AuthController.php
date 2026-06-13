@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +19,7 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('email', $request->email)
-            ->where('role', 'teknisi')
+            ->where('role', UserRole::Teknisi->value)
             ->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {

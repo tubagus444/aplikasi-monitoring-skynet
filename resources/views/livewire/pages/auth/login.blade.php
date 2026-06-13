@@ -20,7 +20,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        if (auth()->user()->role !== 'admin') {
+        if (! auth()->user()->isAdmin()) {
         auth()->logout();
         
         $this->addError('form.email', 'Akses web hanya untuk admin.');
