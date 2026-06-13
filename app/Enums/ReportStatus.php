@@ -42,4 +42,42 @@ enum ReportStatus: string
             [],
         );
     }
+
+    /**
+     * Peta aksi API Android → transisi status laporan. Android memakai kosakata
+     * terpisah (`in_progress`/`done`); INI satu-satunya tempat penerjemahannya ke
+     * transisi enum, sehingga TaskController cukup jadi orkestrator (tak lagi
+     * menyimpan tabel transisi sebagai literal). Transisi searah:
+     * Ditugaskan → SedangMemperbaiki → Selesai.
+     *
+     * @return array<string, array{from: self, to: self}>
+     */
+    private static function apiTransitions(): array
+    {
+        return [
+            'in_progress' => ['from' => self::Ditugaskan,        'to' => self::SedangMemperbaiki],
+            'done'        => ['from' => self::SedangMemperbaiki, 'to' => self::Selesai],
+        ];
+    }
+
+    /**
+     * Kosakata aksi yang valid dikirim Android — sumber untuk aturan validasi `in:...`.
+     *
+     * @return array<int, string>
+     */
+    public static function apiActions(): array
+    {
+        return array_keys(self::apiTransitions());
+    }
+
+    /**
+     * Transisi (`from`/`to`) untuk satu aksi API Android, atau null bila aksinya
+     * tak dikenal (validasi `in:` semestinya sudah menyaring lebih dulu).
+     *
+     * @return array{from: self, to: self}|null
+     */
+    public static function transitionForApiAction(string $action): ?array
+    {
+        return self::apiTransitions()[$action] ?? null;
+    }
 }

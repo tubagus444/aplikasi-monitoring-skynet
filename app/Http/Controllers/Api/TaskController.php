@@ -36,16 +36,15 @@ class TaskController extends Controller
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:in_progress,done',
+            'status' => 'required|in:' . implode(',', ReportStatus::apiActions()),
         ]);
 
         $assignment = TaskAssignment::where('technician_id', $request->user()->id)
             ->findOrFail($id);
 
-        $transition = [
-            'in_progress' => ['from' => ReportStatus::Ditugaskan,        'to' => ReportStatus::SedangMemperbaiki],
-            'done'        => ['from' => ReportStatus::SedangMemperbaiki, 'to' => ReportStatus::Selesai],
-        ][$request->status];
+        // Tabel transisi (kosakata Android → status enum) dimiliki ReportStatus;
+        // controller cukup mengorkestrasi transaksi/lock/work-log di bawah.
+        $transition = ReportStatus::transitionForApiAction($request->status);
 
         // Status milik bersama (level laporan) → dua teknisi bisa menekan tombol
         // yang sama nyaris bersamaan. Kunci baris laporan di dalam transaksi agar
