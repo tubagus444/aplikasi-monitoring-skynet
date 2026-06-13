@@ -12,7 +12,10 @@ class NotificationObserver
 {
     public function created(Notification $notification): void
     {
-        $fcmToken = $notification->user?->fcm_token;
+        // Ambil hanya kolom fcm_token via query relasi — tidak menghidrasi model
+        // User penuh & tidak bergantung pada eager-load (Notification sengaja TIDAK
+        // memuat relasi user secara global; endpoint daftar notifikasi tak butuh).
+        $fcmToken = $notification->user()->value('fcm_token');
 
         if (! $fcmToken) {
             return;
