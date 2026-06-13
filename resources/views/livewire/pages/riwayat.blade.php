@@ -226,7 +226,7 @@ new #[Layout('layouts.app')] class extends Component
                                 };
                             @endphp
                             <li class="ms-4">
-                                <div class="absolute -start-1.5 w-3 h-3 rounded-full border-2 border-base-100 {{ $dot }}"></div>
+                                <div class="absolute -inset-s-1.5 w-3 h-3 rounded-full border-2 border-base-100 {{ $dot }}"></div>
                                 <div class="flex items-baseline justify-between gap-2">
                                     <p class="text-sm font-medium">{{ $statusLabel }}</p>
                                     <p class="text-xs text-base-content/40 shrink-0">{{ $log->logged_at->format('d/m H:i') }}</p>
