@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -25,7 +26,7 @@ new #[Layout('layouts.app')] class extends Component
     // Form fields
     public string $name = '';
     public string $email = '';
-    public string $role = 'teknisi';
+    public string $role = UserRole::Teknisi->value;
     public string $password = '';
     public string $password_confirmation = '';
 
@@ -70,7 +71,7 @@ new #[Layout('layouts.app')] class extends Component
         $rules = [
             'name'  => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email' . ($this->editingId ? ",{$this->editingId}" : ''),
-            'role'  => 'required|in:admin,teknisi',
+            'role'  => 'required|in:' . implode(',', UserRole::values()),
         ];
 
         if (! $this->editingId || $this->password !== '') {
@@ -133,7 +134,7 @@ new #[Layout('layouts.app')] class extends Component
     {
         $this->name = '';
         $this->email = '';
-        $this->role = 'teknisi';
+        $this->role = UserRole::Teknisi->value;
         $this->password = '';
         $this->password_confirmation = '';
         $this->resetValidation();
@@ -172,18 +173,7 @@ new #[Layout('layouts.app')] class extends Component
             icon="o-magnifying-glass"
             class="input-sm w-56 rounded-full"
         />
-        <div class="flex items-center gap-2 flex-wrap">
-            @foreach (['' => 'Semua', 'admin' => 'Admin', 'teknisi' => 'Teknisi'] as $val => $label)
-                <button
-                    wire:click="$set('filterRole', '{{ $val }}')"
-                    @class([
-                        'btn btn-sm rounded-full',
-                        'btn-primary' => $filterRole === $val,
-                        'btn-ghost border border-base-300' => $filterRole !== $val,
-                    ])
-                >{{ $label }}</button>
-            @endforeach
-        </div>
+        <x-filter-chips :options="['' => 'Semua'] + \App\Enums\UserRole::options()" field="filterRole" :selected="$filterRole" />
     </div>
 
     {{-- Tabel --}}
@@ -226,7 +216,7 @@ new #[Layout('layouts.app')] class extends Component
                                 <td>
                                     @php
                                         // Pil role: dot+pil, selaras dengan indikator status di halaman lain.
-                                        $roleStyle = $user->role === 'admin'
+                                        $roleStyle = $user->isAdmin()
                                             ? ['pill' => 'bg-primary/15 text-primary',     'dot' => 'bg-primary',   'label' => 'Admin']
                                             : ['pill' => 'bg-secondary/15 text-secondary', 'dot' => 'bg-secondary', 'label' => 'Teknisi'];
                                     @endphp
@@ -289,7 +279,7 @@ new #[Layout('layouts.app')] class extends Component
             {{-- Kartu pilihan role: has-checked me-highlight kartu via CSS murni --}}
             <div class="grid grid-cols-2 gap-3">
                 <label class="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-base-300 hover:bg-base-200/60 transition-colors has-checked:border-primary has-checked:bg-primary/5">
-                    <input type="radio" wire:model="role" value="teknisi" class="radio radio-sm radio-primary shrink-0" />
+                    <input type="radio" wire:model="role" value="{{ \App\Enums\UserRole::Teknisi->value }}" class="radio radio-sm radio-primary shrink-0" />
                     <div class="flex items-center gap-2 min-w-0">
                         <x-mary-icon name="o-wrench-screwdriver" class="w-5 h-5 text-secondary shrink-0" />
                         <div class="min-w-0">
@@ -299,7 +289,7 @@ new #[Layout('layouts.app')] class extends Component
                     </div>
                 </label>
                 <label class="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-base-300 hover:bg-base-200/60 transition-colors has-checked:border-primary has-checked:bg-primary/5">
-                    <input type="radio" wire:model="role" value="admin" class="radio radio-sm radio-primary shrink-0" />
+                    <input type="radio" wire:model="role" value="{{ \App\Enums\UserRole::Admin->value }}" class="radio radio-sm radio-primary shrink-0" />
                     <div class="flex items-center gap-2 min-w-0">
                         <x-mary-icon name="o-shield-check" class="w-5 h-5 text-primary shrink-0" />
                         <div class="min-w-0">
@@ -342,18 +332,5 @@ new #[Layout('layouts.app')] class extends Component
     </x-mary-modal>
 
     {{-- Modal Konfirmasi Hapus --}}
-    <x-mary-modal wire:model="showDeleteModal" title="Hapus Pengguna" separator>
-        <p class="text-sm text-base-content/70">
-            Yakin ingin menghapus pengguna
-            <strong class="text-base-content">
-                {{ $deletingName }}
-            </strong>?
-            Tindakan ini tidak dapat dibatalkan.
-        </p>
-
-        <x-slot:actions>
-            <x-mary-button label="Batal" class="btn-ghost rounded-full" wire:click="$set('showDeleteModal', false)" />
-            <x-mary-button label="Ya, Hapus" class="btn-error rounded-full" wire:click="deleteUser" spinner="deleteUser" />
-        </x-slot:actions>
-    </x-mary-modal>
+    <x-confirm-delete-modal title="Hapus Pengguna" noun="pengguna" :name="$deletingName" action="deleteUser" />
 </div>

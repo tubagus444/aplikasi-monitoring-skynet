@@ -2,6 +2,7 @@
 
 use App\Actions\SyncReportTechnicians;
 use App\Enums\ReportStatus;
+use App\Enums\UserRole;
 use App\Models\DamageReport;
 use App\Models\DamageType;
 use App\Models\User;
@@ -60,7 +61,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function technicians()
     {
-        return User::where('role', 'teknisi')->orderBy('name')->get();
+        return User::where('role', UserRole::Teknisi->value)->orderBy('name')->get();
     }
 
     /** Opsi chip filter status: 'Semua' + seluruh status dari enum. */
@@ -99,7 +100,7 @@ new #[Layout('layouts.app')] class extends Component
             // Tiap ID harus user dengan role teknisi — tolak ID palsu/manipulasi
             // (cegah error 500 dari FK) & cegah admin diselundupkan jadi teknisi.
             'selectedTechnicians'   => 'array',
-            'selectedTechnicians.*' => 'integer|exists:users,id,role,teknisi',
+            'selectedTechnicians.*' => 'integer|exists:users,id,role,' . UserRole::Teknisi->value,
         ]);
 
         // Simpan laporan + sinkron penugasan dalam satu transaksi: bila sync gagal
@@ -200,18 +201,7 @@ new #[Layout('layouts.app')] class extends Component
             icon="o-magnifying-glass"
             class="input-sm w-56 rounded-full"
         />
-        <div class="flex items-center gap-2 flex-wrap">
-            @foreach ($this->statusOptions as $val => $label)
-                <button
-                    wire:click="$set('filterStatus', '{{ $val }}')"
-                    @class([
-                        'btn btn-sm rounded-full',
-                        'btn-primary' => $filterStatus === $val,
-                        'btn-ghost border border-base-300' => $filterStatus !== $val,
-                    ])
-                >{{ $label }}</button>
-            @endforeach
-        </div>
+        <x-filter-chips :options="$this->statusOptions" field="filterStatus" :selected="$filterStatus" />
     </div>
 
     {{-- Tabel --}}
@@ -373,18 +363,5 @@ new #[Layout('layouts.app')] class extends Component
     </x-mary-modal>
 
     {{-- Modal Konfirmasi Hapus --}}
-    <x-mary-modal wire:model="showDeleteModal" title="Hapus Laporan" separator>
-        <p class="text-sm text-base-content/70">
-            Yakin ingin menghapus laporan
-            <strong class="text-base-content">
-                {{ $deletingName }}
-            </strong>?
-            Tindakan ini tidak dapat dibatalkan.
-        </p>
-
-        <x-slot:actions>
-            <x-mary-button label="Batal" class="btn-ghost rounded-full" wire:click="$set('showDeleteModal', false)" />
-            <x-mary-button label="Ya, Hapus" class="btn-error rounded-full" wire:click="deleteReport" spinner="deleteReport" />
-        </x-slot:actions>
-    </x-mary-modal>
+    <x-confirm-delete-modal title="Hapus Laporan" noun="laporan" :name="$deletingName" action="deleteReport" />
 </div>

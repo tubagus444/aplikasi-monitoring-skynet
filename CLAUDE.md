@@ -128,6 +128,10 @@ app/
                         # location_logs sengaja TETAP cascade (penanda live, bukan arsip)
   Enums/
     ReportStatus.php    # Sumber kebenaran status laporan (dipakai PHP & query, hindari literal)
+    UserRole.php        # Sumber kebenaran peran pengguna (admin/teknisi); pakai
+                        # UserRole::X->value, hindari literal 'admin'/'teknisi'. Kolom
+                        # users.role TIDAK di-cast (sama pola dengan status). options()
+                        # untuk chip filter, values() untuk aturan validasi in:
   Observers/
     NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
@@ -365,6 +369,12 @@ Semua halaman admin memakai konvensi tampilan seragam — ikuti saat membuat kom
   manual di atas tetap untuk indikator lain (role, hitungan) atau label kontekstual (mis. timeline
   work-log di riwayat yang memakai "Mulai Memperbaiki").
 - Wrapper tabel selalu `overflow-x-auto no-scrollbar`.
+- **Chip filter & modal hapus punya komponen siap pakai** (hilangkan duplikasi antar halaman
+  Laporan/Pengguna/Riwayat): `<x-filter-chips :options="..." field="filterStatus" :selected="$filterStatus" />`
+  (grup pil filter; `options` = array value=>label, mis. `ReportStatus::options()`; `field` = nama
+  properti Livewire yang di-set saat klik) dan `<x-confirm-delete-modal title="Hapus X" noun="x"
+  :name="$deletingName" action="deleteX" />` (modal konfirmasi; mengandalkan properti `showDeleteModal`
+  & method `deleteX` di komponen induk). Pakai itu, jangan menyalin markup chip/modal manual.
 - **Pilihan radio/checkbox bentuk kartu** (mis. pemilih teknisi di modal laporan, role di
   modal pengguna): bungkus `<input>` dalam `<label>`, highlight via `has-checked:` (CSS murni,
   instan tanpa round-trip Livewire) — `class="... border border-base-300 has-checked:border-primary
