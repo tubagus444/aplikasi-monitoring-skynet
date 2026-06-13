@@ -95,63 +95,48 @@ new #[Layout('layouts.app')] class extends Component
     </div>
 
     {{-- Tabel --}}
-    <x-mary-card class="rounded-2xl">
-        @if($this->riwayat->isEmpty())
-            <div class="text-center py-12 text-base-content/40">
-                <x-mary-icon name="o-clock" class="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p class="text-sm">Belum ada laporan selesai</p>
-            </div>
-        @else
-            <div class="overflow-x-auto no-scrollbar">
-                <table class="table table-sm w-full">
-                    <thead>
-                        <tr class="text-xs text-base-content/50 uppercase">
-                            <th class="w-12">#</th>
-                            <th>Pelanggan</th>
-                            <th>Alamat</th>
-                            <th>Jenis Gangguan</th>
-                            <th>Teknisi</th>
-                            <th>Selesai</th>
-                            <th>Durasi</th>
-                            <th class="w-16">Detail</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($this->riwayat as $report)
-                            <tr class="hover:bg-base-200 transition-colors">
-                                <td class="text-base-content/40 text-xs">{{ $report->id }}</td>
-                                <td class="font-medium text-sm">{{ $report->customer_name }}</td>
-                                <td class="text-sm text-base-content/70 max-w-[140px] truncate">{{ $report->address }}</td>
-                                <td class="text-sm">{{ $report->damageType->name }}</td>
-                                <td class="text-sm">
-                                    @if($report->taskAssignments->isNotEmpty())
-                                        {{ $report->taskAssignments->pluck('technician.name')->join(', ') }}
-                                    @else
-                                        <span class="text-base-content/30 italic">—</span>
-                                    @endif
-                                </td>
-                                <td class="text-xs text-base-content/60">
-                                    {{ $report->waktu_selesai->format('d/m/Y H:i') }}
-                                </td>
-                                <td class="text-xs text-base-content/50">
-                                    {{ $report->durasiPenanganan(singkat: true) }}
-                                </td>
-                                <td>
-                                    <x-mary-button
-                                        icon="o-eye"
-                                        class="btn-ghost btn-xs rounded-full"
-                                        wire:click="openDetail({{ $report->id }})"
-                                        tooltip="Lihat Detail"
-                                    />
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            <x-mary-pagination :rows="$this->riwayat" class="mt-4" />
-        @endif
-    </x-mary-card>
+    <x-table-card :rows="$this->riwayat" empty-icon="o-clock" empty-text="Belum ada laporan selesai">
+        <x-slot:head>
+            <th class="w-12">#</th>
+            <th>Pelanggan</th>
+            <th>Alamat</th>
+            <th>Jenis Gangguan</th>
+            <th>Teknisi</th>
+            <th>Selesai</th>
+            <th>Durasi</th>
+            <th class="w-16">Detail</th>
+        </x-slot:head>
+
+        @foreach($this->riwayat as $report)
+            <tr class="hover:bg-base-200 transition-colors">
+                <td class="text-base-content/40 text-xs">{{ $report->id }}</td>
+                <td class="font-medium text-sm">{{ $report->customer_name }}</td>
+                <td class="text-sm text-base-content/70 max-w-35 truncate">{{ $report->address }}</td>
+                <td class="text-sm">{{ $report->damageType->name }}</td>
+                <td class="text-sm">
+                    @if($report->taskAssignments->isNotEmpty())
+                        {{ $report->taskAssignments->pluck('technician.name')->join(', ') }}
+                    @else
+                        <span class="text-base-content/30 italic">—</span>
+                    @endif
+                </td>
+                <td class="text-xs text-base-content/60">
+                    {{ $report->waktu_selesai->format('d/m/Y H:i') }}
+                </td>
+                <td class="text-xs text-base-content/50">
+                    {{ $report->durasiPenanganan(singkat: true) }}
+                </td>
+                <td>
+                    <x-mary-button
+                        icon="o-eye"
+                        class="btn-ghost btn-xs rounded-full"
+                        wire:click="openDetail({{ $report->id }})"
+                        tooltip="Lihat Detail"
+                    />
+                </td>
+            </tr>
+        @endforeach
+    </x-table-card>
 
     {{-- Modal Detail --}}
     <x-mary-modal wire:model="showDetailModal" title="Detail Laporan" separator box-class="max-w-lg">

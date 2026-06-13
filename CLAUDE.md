@@ -369,6 +369,12 @@ Semua halaman admin memakai konvensi tampilan seragam — ikuti saat membuat kom
   manual di atas tetap untuk indikator lain (role, hitungan) atau label kontekstual (mis. timeline
   work-log di riwayat yang memakai "Mulai Memperbaiki").
 - Wrapper tabel selalu `overflow-x-auto no-scrollbar`.
+- **Kerangka tabel punya komponen siap pakai**: `<x-table-card :rows="$this->reports"
+  empty-icon="o-document-text" empty-text="...">` membungkus card `rounded-2xl` + empty-state +
+  wrapper `overflow-x-auto no-scrollbar` + `<table>`/`<thead>` berstyle + `<x-mary-pagination>`.
+  Isi `<x-slot:head>` dengan daftar `<th>` (dibungkus `<tr>` berstyle di dalam komponen) dan slot
+  default dengan baris `<tr>` (mis. `@foreach`, tanpa `<tbody>`). Dipakai bersama halaman
+  Laporan/Pengguna/Riwayat — jangan menyalin markup card+tabel manual.
 - **Chip filter & modal hapus punya komponen siap pakai** (hilangkan duplikasi antar halaman
   Laporan/Pengguna/Riwayat): `<x-filter-chips :options="..." field="filterStatus" :selected="$filterStatus" />`
   (grup pil filter; `options` = array value=>label, mis. `ReportStatus::options()`; `field` = nama

@@ -205,71 +205,56 @@ new #[Layout('layouts.app')] class extends Component
     </div>
 
     {{-- Tabel --}}
-    <x-mary-card class="rounded-2xl">
-        @if($this->reports->isEmpty())
-            <div class="text-center py-12 text-base-content/40">
-                <x-mary-icon name="o-document-text" class="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p class="text-sm">Tidak ada laporan ditemukan</p>
-            </div>
-        @else
-            <div class="overflow-x-auto no-scrollbar">
-                <table class="table table-sm w-full">
-                    <thead>
-                        <tr class="text-xs text-base-content/50 uppercase">
-                            <th class="w-12">#</th>
-                            <th>Pelanggan</th>
-                            <th>Alamat</th>
-                            <th>Jenis Gangguan</th>
-                            <th>Teknisi</th>
-                            <th>Status</th>
-                            <th>Tanggal</th>
-                            <th class="w-20">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($this->reports as $report)
-                            <tr class="hover:bg-base-200 transition-colors">
-                                <td class="text-base-content/40 text-xs">{{ $report->id }}</td>
-                                <td class="font-medium">{{ $report->customer_name }}</td>
-                                <td class="text-sm text-base-content/70 max-w-[160px] truncate">{{ $report->address }}</td>
-                                <td class="text-sm">{{ $report->damageType->name }}</td>
-                                <td class="text-sm">
-                                    @if($report->taskAssignments->isNotEmpty())
-                                        {{ $report->taskAssignments->pluck('technician.name')->join(', ') }}
-                                    @else
-                                        <span class="text-base-content/30 italic">Belum</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    <x-status-pill :status="$report->status" />
-                                </td>
-                                <td class="text-xs text-base-content/50">
-                                    {{ $report->created_at->format('d/m/Y') }}
-                                </td>
-                                <td>
-                                    <div class="flex gap-1">
-                                        <x-mary-button
-                                            icon="o-pencil"
-                                            class="btn-ghost btn-xs rounded-full"
-                                            wire:click="openEdit({{ $report->id }})"
-                                            tooltip="Edit"
-                                        />
-                                        <x-mary-button
-                                            icon="o-trash"
-                                            class="btn-ghost btn-xs text-error rounded-full"
-                                            wire:click="confirmDelete({{ $report->id }})"
-                                            tooltip="Hapus"
-                                        />
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            <x-mary-pagination :rows="$this->reports" class="mt-4" />
-        @endif
-    </x-mary-card>
+    <x-table-card :rows="$this->reports" empty-icon="o-document-text" empty-text="Tidak ada laporan ditemukan">
+        <x-slot:head>
+            <th class="w-12">#</th>
+            <th>Pelanggan</th>
+            <th>Alamat</th>
+            <th>Jenis Gangguan</th>
+            <th>Teknisi</th>
+            <th>Status</th>
+            <th>Tanggal</th>
+            <th class="w-20">Aksi</th>
+        </x-slot:head>
+
+        @foreach($this->reports as $report)
+            <tr class="hover:bg-base-200 transition-colors">
+                <td class="text-base-content/40 text-xs">{{ $report->id }}</td>
+                <td class="font-medium">{{ $report->customer_name }}</td>
+                <td class="text-sm text-base-content/70 max-w-40 truncate">{{ $report->address }}</td>
+                <td class="text-sm">{{ $report->damageType->name }}</td>
+                <td class="text-sm">
+                    @if($report->taskAssignments->isNotEmpty())
+                        {{ $report->taskAssignments->pluck('technician.name')->join(', ') }}
+                    @else
+                        <span class="text-base-content/30 italic">Belum</span>
+                    @endif
+                </td>
+                <td>
+                    <x-status-pill :status="$report->status" />
+                </td>
+                <td class="text-xs text-base-content/50">
+                    {{ $report->created_at->format('d/m/Y') }}
+                </td>
+                <td>
+                    <div class="flex gap-1">
+                        <x-mary-button
+                            icon="o-pencil"
+                            class="btn-ghost btn-xs rounded-full"
+                            wire:click="openEdit({{ $report->id }})"
+                            tooltip="Edit"
+                        />
+                        <x-mary-button
+                            icon="o-trash"
+                            class="btn-ghost btn-xs text-error rounded-full"
+                            wire:click="confirmDelete({{ $report->id }})"
+                            tooltip="Hapus"
+                        />
+                    </div>
+                </td>
+            </tr>
+        @endforeach
+    </x-table-card>
 
     {{-- Modal Buat / Edit Laporan --}}
     <x-mary-modal wire:model="showFormModal" :title="$editingId ? 'Edit Laporan' : 'Buat Laporan Baru'" separator>

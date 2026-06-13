@@ -188,82 +188,67 @@ new #[Layout('layouts.app')] class extends Component
     </div>
 
     {{-- Tabel --}}
-    <x-mary-card class="rounded-2xl">
-        @if($this->users->isEmpty())
-            <div class="text-center py-12 text-base-content/40">
-                <x-mary-icon name="o-users" class="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p class="text-sm">Tidak ada pengguna ditemukan</p>
-            </div>
-        @else
-            <div class="overflow-x-auto no-scrollbar">
-                <table class="table table-sm w-full">
-                    <thead>
-                        <tr class="text-xs text-base-content/50 uppercase">
-                            <th class="w-12">#</th>
-                            <th>Nama</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                            <th>Bergabung</th>
-                            <th class="w-20">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($this->users as $user)
-                            <tr class="hover:bg-base-200 transition-colors">
-                                <td class="text-base-content/40 text-xs">{{ $user->id }}</td>
-                                <td>
-                                    <div class="flex items-center gap-2">
-                                        <x-avatar
-                                            :placeholder="strtoupper(substr($user->name, 0, 1))"
-                                            class="w-7! h-7! text-xs! bg-primary/10 text-primary"
-                                        />
-                                        <span class="font-medium text-sm">{{ $user->name }}</span>
-                                        @if($user->id === auth()->id())
-                                            <x-badge value="Anda" class="badge-xs badge-ghost" />
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="text-sm text-base-content/70">{{ $user->email }}</td>
-                                <td>
-                                    @php
-                                        // Pil role: dot+pil, selaras dengan indikator status di halaman lain.
-                                        $roleStyle = $user->isAdmin()
-                                            ? ['pill' => 'bg-primary/15 text-primary',     'dot' => 'bg-primary',   'label' => 'Admin']
-                                            : ['pill' => 'bg-secondary/15 text-secondary', 'dot' => 'bg-secondary', 'label' => 'Teknisi'];
-                                    @endphp
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ $roleStyle['pill'] }}">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $roleStyle['dot'] }}"></span>
-                                        {{ $roleStyle['label'] }}
-                                    </span>
-                                </td>
-                                <td class="text-xs text-base-content/50">
-                                    {{ $user->created_at->format('d/m/Y') }}
-                                </td>
-                                <td>
-                                    <div class="flex gap-1">
-                                        <x-mary-button
-                                            icon="o-pencil"
-                                            class="btn-ghost btn-xs rounded-full"
-                                            wire:click="openEdit({{ $user->id }})"
-                                            tooltip="Edit"
-                                        />
-                                        <x-mary-button
-                                            icon="o-trash"
-                                            class="btn-ghost btn-xs rounded-full {{ $user->id === auth()->id() ? 'opacity-20 cursor-not-allowed' : 'text-error' }}"
-                                            wire:click="confirmDelete({{ $user->id }})"
-                                            tooltip="{{ $user->id === auth()->id() ? 'Tidak bisa hapus akun sendiri' : 'Hapus' }}"
-                                            :disabled="$user->id === auth()->id()"
-                                        />
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            <x-mary-pagination :rows="$this->users" class="mt-4" />
-        @endif
-    </x-mary-card>
+    <x-table-card :rows="$this->users" empty-icon="o-users" empty-text="Tidak ada pengguna ditemukan">
+        <x-slot:head>
+            <th class="w-12">#</th>
+            <th>Nama</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Bergabung</th>
+            <th class="w-20">Aksi</th>
+        </x-slot:head>
+
+        @foreach($this->users as $user)
+            <tr class="hover:bg-base-200 transition-colors">
+                <td class="text-base-content/40 text-xs">{{ $user->id }}</td>
+                <td>
+                    <div class="flex items-center gap-2">
+                        <x-avatar
+                            :placeholder="strtoupper(substr($user->name, 0, 1))"
+                            class="w-7! h-7! text-xs! bg-primary/10 text-primary"
+                        />
+                        <span class="font-medium text-sm">{{ $user->name }}</span>
+                        @if($user->id === auth()->id())
+                            <x-badge value="Anda" class="badge-xs badge-ghost" />
+                        @endif
+                    </div>
+                </td>
+                <td class="text-sm text-base-content/70">{{ $user->email }}</td>
+                <td>
+                    @php
+                        // Pil role: dot+pil, selaras dengan indikator status di halaman lain.
+                        $roleStyle = $user->isAdmin()
+                            ? ['pill' => 'bg-primary/15 text-primary',     'dot' => 'bg-primary',   'label' => 'Admin']
+                            : ['pill' => 'bg-secondary/15 text-secondary', 'dot' => 'bg-secondary', 'label' => 'Teknisi'];
+                    @endphp
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ $roleStyle['pill'] }}">
+                        <span class="w-1.5 h-1.5 rounded-full {{ $roleStyle['dot'] }}"></span>
+                        {{ $roleStyle['label'] }}
+                    </span>
+                </td>
+                <td class="text-xs text-base-content/50">
+                    {{ $user->created_at->format('d/m/Y') }}
+                </td>
+                <td>
+                    <div class="flex gap-1">
+                        <x-mary-button
+                            icon="o-pencil"
+                            class="btn-ghost btn-xs rounded-full"
+                            wire:click="openEdit({{ $user->id }})"
+                            tooltip="Edit"
+                        />
+                        <x-mary-button
+                            icon="o-trash"
+                            class="btn-ghost btn-xs rounded-full {{ $user->id === auth()->id() ? 'opacity-20 cursor-not-allowed' : 'text-error' }}"
+                            wire:click="confirmDelete({{ $user->id }})"
+                            tooltip="{{ $user->id === auth()->id() ? 'Tidak bisa hapus akun sendiri' : 'Hapus' }}"
+                            :disabled="$user->id === auth()->id()"
+                        />
+                    </div>
+                </td>
+            </tr>
+        @endforeach
+    </x-table-card>
 
     {{-- Modal Buat / Edit Pengguna --}}
     <x-mary-modal wire:model="showFormModal" :title="$editingId ? 'Edit Pengguna' : 'Tambah Pengguna'" separator>
