@@ -84,18 +84,11 @@ new #[Layout('layouts.app')] class extends Component
             icon="o-magnifying-glass"
             class="input-sm w-56 rounded-full"
         />
-        <div class="flex items-center gap-2 flex-wrap">
-            @foreach (['' => 'Semua', 'minggu' => 'Minggu Ini', 'bulan' => 'Bulan Ini'] as $val => $label)
-                <button
-                    wire:click="$set('filterPeriod', '{{ $val }}')"
-                    @class([
-                        'btn btn-sm rounded-full',
-                        'btn-primary' => $filterPeriod === $val,
-                        'btn-ghost border border-base-300' => $filterPeriod !== $val,
-                    ])
-                >{{ $label }}</button>
-            @endforeach
-        </div>
+        <x-filter-chips
+            :options="['' => 'Semua', 'minggu' => 'Minggu Ini', 'bulan' => 'Bulan Ini']"
+            field="filterPeriod"
+            :selected="$filterPeriod"
+        />
         <span class="text-xs text-base-content/40 self-center ml-auto">
             {{ $this->riwayat->total() }} laporan selesai
         </span>
