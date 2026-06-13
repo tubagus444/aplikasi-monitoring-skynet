@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Livewire\Concerns\WithTableFilters;
 use App\Models\User;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -10,7 +11,7 @@ use Mary\Traits\Toast;
 
 new #[Layout('layouts.app')] class extends Component
 {
-    use WithPagination, Toast;
+    use WithPagination, Toast, WithTableFilters;
 
     // Filter & search
     public string $search = '';
@@ -151,16 +152,9 @@ new #[Layout('layouts.app')] class extends Component
         $this->resetValidation();
     }
 
-    public function updatedSearch(): void
+    protected function tableComputed(): string|array
     {
-        $this->resetPage();
-        unset($this->users);
-    }
-
-    public function updatedFilterRole(): void
-    {
-        $this->resetPage();
-        unset($this->users);
+        return 'users';
     }
 }; ?>
 

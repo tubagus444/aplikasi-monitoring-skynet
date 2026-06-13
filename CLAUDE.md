@@ -159,8 +159,10 @@ tests/
                         # FilterScopingTest (regresi search+filter status/role tidak bocor),
                         # GetActiveTechnicianLocationsTest (lokasi teknisi aktif, anti N+1),
                         # CompletedAtTest (completed_at + durasiPenanganan terpusat + modal),
-                        # UserDeletionPreservesHistoryTest (hapus user → riwayat utuh, FK null)
-                        # (57 test cases, semua pass — 28 API + 29 Web)
+                        # UserDeletionPreservesHistoryTest (hapus user → riwayat utuh, FK null),
+                        # PenggunaDeletionGuardTest (deleteUser tolak hapus diri sendiri walau lewati confirmDelete),
+                        # TableFiltersResetTest (trait WithTableFilters: ubah search/filter reset paginasi ke hal. 1)
+                        # (61 test cases, semua pass — 28 API + 33 Web)
 ```
 
 ## Routes & Endpoint
@@ -413,6 +415,12 @@ new #[Layout('layouts.app')] class extends Component {
 - View disimpan di `resources/views/livewire/pages/`
 - Layout wrapper: `layouts.app` (sidebar + topbar mobile)
 - Computed properties pakai attribute `#[Computed]` + `unset($this->propertyName)` untuk invalidasi cache
+- **Halaman tabel + filter pakai trait `App\Livewire\Concerns\WithTableFilters`** (gantikan
+  boilerplate `updatedSearch()`/`updatedFilterX()` yang dulu diulang di Laporan/Pengguna/Riwayat).
+  Trait memakai hook generik `updated()`: tiap properti `search` atau berawalan `filter` berubah →
+  `resetPage()` + unset computed tabel. Komponen wajib pakai `WithPagination` & mendeklarasikan
+  `tableComputed()` (nama #[Computed] tabel, mis. `return 'reports';`). Konvensi nama filter
+  (`search` + prefix `filter`) sudah seragam — patuhi saat menambah filter baru
 
 ### Ekspor PDF (barryvdh/laravel-dompdf)
 

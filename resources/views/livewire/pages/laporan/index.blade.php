@@ -3,6 +3,7 @@
 use App\Actions\SyncReportTechnicians;
 use App\Enums\ReportStatus;
 use App\Enums\UserRole;
+use App\Livewire\Concerns\WithTableFilters;
 use App\Models\DamageReport;
 use App\Models\DamageType;
 use App\Models\User;
@@ -15,7 +16,7 @@ use Mary\Traits\Toast;
 
 new #[Layout('layouts.app')] class extends Component
 {
-    use WithPagination, Toast;
+    use WithPagination, Toast, WithTableFilters;
 
     // Filter & search
     public string $search = '';
@@ -167,16 +168,9 @@ new #[Layout('layouts.app')] class extends Component
         $this->resetValidation();
     }
 
-    public function updatedSearch(): void
+    protected function tableComputed(): string|array
     {
-        $this->resetPage();
-        unset($this->reports);
-    }
-
-    public function updatedFilterStatus(): void
-    {
-        $this->resetPage();
-        unset($this->reports);
+        return 'reports';
     }
 }; ?>
 

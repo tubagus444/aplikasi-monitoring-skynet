@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Concerns\WithTableFilters;
 use App\Models\DamageReport;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -8,7 +9,7 @@ use Livewire\WithPagination;
 
 new #[Layout('layouts.app')] class extends Component
 {
-    use WithPagination;
+    use WithPagination, WithTableFilters;
 
     public string $search = '';
     public string $filterPeriod = '';
@@ -43,8 +44,10 @@ new #[Layout('layouts.app')] class extends Component
         $this->showDetailModal = true;
     }
 
-    public function updatedSearch(): void { $this->resetPage(); unset($this->riwayat); }
-    public function updatedFilterPeriod(): void { $this->resetPage(); unset($this->riwayat); }
+    protected function tableComputed(): string|array
+    {
+        return 'riwayat';
+    }
 }; ?>
 
 <div>
