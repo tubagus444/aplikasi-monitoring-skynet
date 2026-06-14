@@ -127,7 +127,10 @@ app/
                         # jadi NULL (tampil "—"/"Teknisi dihapus"). task_assignments &
                         # location_logs sengaja TETAP cascade (penanda live, bukan arsip)
   Enums/
-    ReportStatus.php    # Sumber kebenaran status laporan (dipakai PHP & query, hindari literal)
+    ReportStatus.php    # Sumber kebenaran status laporan (dipakai PHP & query, hindari literal).
+                        # Juga memegang tabel transisi API Android: apiTransitions() (peta
+                        # in_progress/done → from/to), apiActions() (kosakata valid untuk in:),
+                        # transitionForApiAction() — TaskController cuma orkestrator, bukan pemilik tabel
     UserRole.php        # Sumber kebenaran peran pengguna (admin/teknisi); pakai
                         # UserRole::X->value, hindari literal 'admin'/'teknisi'. Kolom
                         # users.role TIDAK di-cast (sama pola dengan status). options()
@@ -136,13 +139,15 @@ app/
     NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
   web.php               # Volt routes (admin panel) + history/export + redirect `/`
-  api.php               # 8 API endpoints (Android via Sanctum); /auth/login throttle:5,1
+  api.php               # 9 API endpoints (Android via Sanctum); /auth/login throttle:5,1
 resources/views/livewire/pages/
   dashboard.blade.php
   laporan/index.blade.php
   monitoring.blade.php
   riwayat.blade.php
   pengguna/index.blade.php
+resources/views/components/ # Komponen Blade reusable panel admin: status-pill,
+                        # table-card, filter-chips, confirm-delete-modal (lihat "Bahasa Visual")
 resources/views/pdf/    # Template dompdf: layout, riwayat-ringkasan,
                         # riwayat-lengkap (CSS inline, font DejaVu Sans)
 database/
@@ -193,7 +198,10 @@ tests/
 | Method | Path | Keterangan |
 |---|---|---|
 | GET | `/dashboard` | Ringkasan laporan per status + peta teknisi aktif |
-| GET | `/dashboard/map-data` | JSON posisi teknisi aktif (dipanggil JS) |
+
+> Posisi teknisi di peta dashboard di-refresh lewat **Livewire event** `map-data-refreshed`
+> (dispatch dari component, ditangkap `$wire.on(...)` di `@script`) — sama polanya dengan
+> monitoring, BUKAN endpoint HTTP/JSON terpisah.
 
 **Laporan Gangguan**
 | Method | Path | Keterangan |
@@ -427,7 +435,7 @@ new #[Layout('layouts.app')] class extends Component {
 Halaman Riwayat bisa diekspor ke PDF (laporan cetak ber-kop). Pola wajib saat menambah ekspor:
 
 - Endpoint = **controller biasa** (`ReportExportController@riwayat`, route `history/export` di
-  grup `['auth','verified']`), BUKAN Volt — Volt tidak cocok untuk response file.
+  grup `['auth']`), BUKAN Volt — Volt tidak cocok untuk response file.
 - Template di `resources/views/pdf/`: `layout.blade.php` (kop teks + footer nomor halaman via
   `counter(page)/counter(pages)`), `riwayat-ringkasan.blade.php` (A4 landscape, 1 baris/laporan),
   `riwayat-lengkap.blade.php` (A4 portrait, per-laporan + timeline work logs, `page-break-inside: avoid`).
@@ -470,10 +478,11 @@ tetap jalan.
 
 **Sumber kebenaran nilai status DB = enum `App\Enums\ReportStatus`** (`Ditugaskan`,
 `SedangMemperbaiki`, `Selesai`). Di query & logika bisnis pakai `ReportStatus::X->value`, JANGAN
-tulis string literal (typo jadi bug senyap). Pemetaan Android `in_progress`/`done` → enum
-dilakukan di `TaskController`. Pengecualian: blok `match()` warna/label status di blade masih
-literal karena kelas Tailwind wajib berada di view (aturan scanner) — kandidat komponen
-`<x-status-pill>` di masa depan.
+tulis string literal (typo jadi bug senyap). Pemetaan Android `in_progress`/`done` → transisi enum
+juga tinggal di `ReportStatus` (`apiTransitions()`/`transitionForApiAction()`/`apiActions()`);
+`TaskController` hanya memanggilnya sebagai orkestrator, bukan menyimpan tabel transisi sebagai
+literal. Pengecualian: blok `match()` warna/label status di blade masih literal karena kelas
+Tailwind wajib berada di view (aturan scanner) — sudah diekstrak ke komponen `<x-status-pill>`.
 
 ### Leaflet.js + Livewire — Pola Wajib
 
