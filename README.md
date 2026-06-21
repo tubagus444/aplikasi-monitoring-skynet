@@ -1,58 +1,194 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Aplikasi Monitoring Perbaikan Jaringan — SkyNet RT/RW Net
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi **web admin + Android** untuk memonitor proses perbaikan gangguan jaringan internet
+pada layanan **SkyNet RT/RW Net** (Kab. Bekasi). Admin mengelola laporan kerusakan dan menugaskan
+teknisi dari panel web; teknisi menerima tugas, memperbarui status, dan mengirim lokasi GPS-nya
+secara realtime dari aplikasi Android.
 
-## About Laravel
+> Studi kasus skripsi · Metode pengembangan **RAD** (Rapid Application Development).
+> Repositori ini adalah **backend + panel web admin**. Aplikasi Android teknisi berada di repo
+> terpisah (lihat [CLAUDE_ANDROID.md](CLAUDE_ANDROID.md) untuk kontrak API & spesifikasinya).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## ✨ Fitur Utama
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Panel Web Admin
+- **Dashboard** — ringkasan laporan per status + peta posisi teknisi aktif.
+- **Manajemen Laporan** — CRUD laporan kerusakan, filter & pencarian, penugasan multi-teknisi.
+- **Monitoring GPS** — peta Leaflet.js realtime (polling 10 detik), fokus ke teknisi tertentu.
+- **Riwayat** — laporan selesai, filter periode, detail timeline, **ekspor PDF** (ringkasan & lengkap).
+- **Manajemen Pengguna** — CRUD admin & teknisi.
 
-## Learning Laravel
+### Aplikasi Android Teknisi (repo terpisah)
+- Login via token (Sanctum), lihat & perbarui status tugas.
+- GPS otomatis aktif selama status **"Sedang Memperbaiki"**, berhenti saat **"Selesai"**.
+- Push notification (Firebase FCM) saat menerima tugas baru.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+### Alur Status
+```
+Ditugaskan ──► Sedang Memperbaiki (GPS aktif) ──► Selesai (GPS berhenti)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## 🧱 Stack Teknologi
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Layer | Teknologi |
+|---|---|
+| Backend | Laravel 13 (PHP ^8.3) |
+| UI Realtime | Livewire v3 + Volt |
+| Komponen UI | Mary UI (`robsontenorio/mary`) |
+| CSS | Tailwind CSS v4 (CSS-first) + DaisyUI v5 |
+| Build | Vite v8 |
+| Peta | Leaflet.js + OpenStreetMap |
+| Auth API | Laravel Sanctum (token, untuk Android) |
+| Push Notification | Firebase FCM (`kreait/laravel-firebase`) |
+| Ekspor PDF | `barryvdh/laravel-dompdf` |
+| Database | MySQL |
+| Mobile | Android (Kotlin · Jetpack Compose) — repo terpisah |
+| Dev Environment | Laragon (Windows) |
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 🏗️ Arsitektur Singkat
 
-## Security Vulnerabilities
+```
+┌─────────────────────────────┐        ┌──────────────────────────────┐
+│         WEB (Admin)         │        │       ANDROID (Teknisi)      │
+│   Browser → Livewire/Volt   │        │   Kotlin App → REST API      │
+│                             │◄──────►│                              │
+│  Session (cookie)           │        │  Token Sanctum (Bearer)      │
+└──────────────┬──────────────┘        └───────────────┬──────────────┘
+               │                                        │
+               └──────────────► MySQL ◄─────────────────┘
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Kedua sisi mengakses database yang sama; perbedaannya hanya pada cara autentikasi.
+Penjelasan cara kerja end-to-end ada di [BELAJAR.md](BELAJAR.md).
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 🚀 Instalasi & Menjalankan (Lokal / Laragon)
+
+### Prasyarat
+- PHP **8.3+**, Composer
+- Node.js 20+ & npm
+- MySQL (disarankan via **Laragon**)
+
+### Langkah
+
+> ⚠️ **Jangan langsung `composer setup`.** Bawaan `.env.example` memakai `DB_CONNECTION=sqlite`
+> dan `SESSION_DRIVER=database`, padahal proyek ini memakai **MySQL** + `SESSION_DRIVER=file`.
+> Konfigurasikan `.env` lebih dulu (langkah 2–3) sebelum migrasi.
+
+```bash
+# 1. Install dependency PHP
+composer install
+
+# 2. Salin file environment lalu generate APP_KEY
+cp .env.example .env        # Windows (PowerShell): Copy-Item .env.example .env
+php artisan key:generate
+```
+
+**3. Edit `.env`** — sesuaikan database & session:
+
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=aplikasi_monitoring
+DB_USERNAME=root
+DB_PASSWORD=
+
+SESSION_DRIVER=file
+
+# Wajib untuk push notification Android (path ke service account JSON Firebase).
+# File JSON JANGAN di-commit (sudah ada di .gitignore).
+FIREBASE_CREDENTIALS=
+```
+
+```bash
+# 4. Buat database "aplikasi_monitoring" di MySQL (mis. lewat HeidiSQL / Laragon)
+
+# 5. Jalankan migrasi + isi data contoh (akun demo, jenis kerusakan, dll.)
+php artisan migrate --seed
+
+# 6. Build aset frontend
+npm install
+npm run build
+
+# 7. Jalankan semua service sekaligus (server + queue + log + vite)
+composer dev
+```
+
+Buka **http://localhost:8000** lalu login sebagai admin (lihat akun demo di bawah).
+
+> **Firebase opsional saat dev:** bila `FIREBASE_CREDENTIALS` belum diisi, pengiriman FCM gagal
+> diam-diam (`try/catch` + log) dan **tidak** menghentikan alur — notifikasi tetap tersimpan di DB.
+
+---
+
+## 🔑 Akun Demo (dari seeder)
+
+| Peran | Email | Password | Akses |
+|---|---|---|---|
+| Admin | `admin@skynet.test` | `password` | Web admin |
+| Teknisi | `teknisi1@skynet.test` | `password` | Android (API) |
+| Teknisi | `teknisi2@skynet.test` | `password` | Android (API) |
+| Teknisi | `teknisi3@skynet.test` | `password` | Android (API) |
+
+> Login **web hanya untuk admin**; akun teknisi hanya bisa masuk lewat API Android.
+
+---
+
+## 🧪 Testing
+
+```bash
+php artisan test          # atau: composer test
+```
+
+Cakupan test ada di `tests/Feature/Api/` (endpoint Android) dan `tests/Feature/Web/`
+(halaman & logika admin).
+
+---
+
+## 📚 Dokumentasi Lain
+
+| Dokumen | Isi |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | Acuan teknis lengkap: struktur, routes, konvensi kode & UI, pola Volt/Leaflet/PDF |
+| [BELAJAR.md](BELAJAR.md) | Panduan belajar — penjelasan *cara kerja* aplikasi dari ujung ke ujung |
+| [CLAUDE_ANDROID.md](CLAUDE_ANDROID.md) | **Kontrak API** backend untuk klien Android (request/response tiap endpoint) |
+| [CATATAN-FITUR.md](CATATAN-FITUR.md) | Backlog ide pengembangan & rencana deploy (shared hosting / VPS) |
+
+---
+
+## 🗄️ Struktur Database (ringkas)
+
+10 tabel utama. Inti alurnya: `damage_reports` (laporan) ⇄ `task_assignments` (penugasan
+teknisi) ⇄ `users`; jejak pekerjaan di `work_logs`, jejak GPS di `location_logs`, push di
+`notifications`. Detail relasi & aturan foreign key ada di [BELAJAR.md](BELAJAR.md) Bab 3.
+
+| Tabel | Keterangan |
+|---|---|
+| `users` | Admin & teknisi |
+| `damage_types` | Jenis kerusakan jaringan |
+| `damage_reports` | Laporan kerusakan dari admin |
+| `task_assignments` | Penugasan teknisi ke laporan |
+| `work_logs` | Log aktivitas / transisi status pekerjaan |
+| `location_logs` | Koordinat GPS teknisi (realtime) |
+| `notifications` | Notifikasi untuk teknisi |
+| `personal_access_tokens` | Token Sanctum (Android) |
+| `cache`, `jobs` | Cache & antrian Laravel |
+
+---
+
+## 📌 Catatan
+
+- Gunakan **`composer dev`** (bukan sekadar `php artisan serve`) agar Vite, queue, dan log
+  ikut berjalan.
+- Auth web **sengaja admin-only**: tidak ada halaman registrasi / reset password / verifikasi
+  email. Akun dikelola lewat menu **Pengguna**.
+- Proyek ini dibangun untuk keperluan **skripsi** (studi kasus SkyNet RT/RW Net), berbasis
+  kerangka Laravel yang berlisensi [MIT](https://opensource.org/licenses/MIT).
