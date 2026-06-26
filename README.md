@@ -103,6 +103,7 @@ FIREBASE_CREDENTIALS=
 ```bash
 # 3. Siapkan database "aplikasi_monitoring" + isi data contoh (akun demo, jenis kerusakan, dll.)
 #    Jika database belum dibuat, perintah ini akan menawarkan membuatkannya otomatis (jawab "yes").
+php artisan migrate
 #    Alternatif: buat manual lebih dulu via HeidiSQL / Laragon, lalu jalankan perintah di bawah.
 php artisan migrate --seed
 
