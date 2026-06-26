@@ -395,19 +395,25 @@ teruji** di Android — sisi server tinggal memakai service account JSON yang sa
 - **Peta OSM tanpa API key** + **API Android pakai token, bukan cookie** → tak ada ribet CORS.
 - **Belum ada cron wajib** (cleanup `location_logs` / fitur #1 belum dibuat).
 
-### ⚠️ Checklist `.env` produksi — 5 ranjau dari default `.env.example`
+### ⚠️ Checklist `.env` produksi — yang wajib disesuaikan dari nilai dev
 
-`.env.example` punya default yang **salah untuk produksi**; jangan disalin apa adanya:
+`.env.example` sekarang **sudah memuat konfigurasi proyek yang benar** (`DB_CONNECTION=mysql`,
+`SESSION_DRIVER=file`, ada `FIREBASE_CREDENTIALS`) — jadi `sessions`/sqlite tidak lagi jadi ranjau.
+Sisa yang **wajib diubah** saat naik ke produksi (jangan pakai nilai dev apa adanya):
 
-| # | Default example | Wajib jadi | Akibat kalau lalai |
+| # | Nilai dev (`.env.example`) | Wajib jadi (produksi) | Akibat kalau lalai |
 |---|---|---|---|
-| 1 | `SESSION_DRIVER=database` | **`SESSION_DRIVER=file`** | Tabel `sessions` tak pernah dibuat → **login error** |
-| 2 | `DB_CONNECTION=sqlite` | `mysql` + kredensial host | App tak konek DB produksi |
-| 3 | `FIREBASE_CREDENTIALS` (tak ada di example) | Path ke JSON service account | Push FCM mati |
-| 4 | `APP_DEBUG=true`, `APP_ENV=local` | `false` / `production` | Halaman error membocorkan kredensial & query |
+| 1 | `APP_ENV=local`, `APP_DEBUG=true` | `production` / **`false`** | Halaman error membocorkan kredensial & query |
+| 2 | `APP_URL=http://localhost` | URL HTTPS domain produksi | Link absolut / aset salah arah |
+| 3 | DB lokal (`root`, tanpa password) | Kredensial DB server produksi | App tak konek DB produksi |
+| 4 | `FIREBASE_CREDENTIALS=` (kosong) | Path ke JSON service account di server | Push FCM mati |
 | 5 | — (document root) | Docroot → folder **`public/`** | `.env` & seluruh source code terekspos publik |
 
 JSON Firebase: **jangan di webroot, jangan di-commit git** (sudah di `.gitignore`).
+
+> Catatan: poin #1 (`SESSION_DRIVER=file`) & #2 (`mysql`) yang dulu jadi "ranjau" sudah hilang sejak
+> `.env.example` diselaraskan dengan setup proyek — kini cukup salin `.env.example` lalu sesuaikan
+> tabel di atas.
 
 ### Langkah umum (berlaku di kedua jalur)
 
@@ -415,7 +421,7 @@ JSON Firebase: **jangan di webroot, jangan di-commit git** (sudah di `.gitignore
 2. Upload kode (Git / FTP), arahkan **document root ke `public/`**.
 3. `composer install --no-dev --optimize-autoloader`
 4. Asset: `npm run build` (di shared hosting tanpa Node → build lokal lalu upload `public/build`).
-5. `.env` produksi (lihat checklist 5 ranjau) → `php artisan key:generate`.
+5. `.env` produksi (lihat checklist penyesuaian di atas) → `php artisan key:generate`.
 6. `php artisan migrate --force` → buat/seed **admin pertama** → `config:cache route:cache view:cache`
    → `php artisan storage:link` (penting bila fitur foto bukti #5 dibuat).
 7. **Android**: ubah **base URL** ke `https://domain-mu/...`, rebuild APK. Firebase tak berubah
@@ -473,8 +479,9 @@ JSON Firebase: **jangan di webroot, jangan di-commit git** (sudah di `.gitignore
 
 ### Catatan / keputusan yang masih terbuka
 
-- **Admin pertama** sebaiknya dibuat lewat **seeder** (otomatis saat `db:seed`) agar tak lupa saat
-  deploy — lebih aman daripada `tinker` manual.
+- **Admin pertama** ✅ **sudah** dibuat lewat seeder ([UserSeeder.php](database/seeders/UserSeeder.php),
+  `admin@skynet.test`) — otomatis saat `migrate --seed`, tak perlu `tinker` manual. Ganti
+  password/email default ini setelah deploy.
 - **Akses penguji setelah sidang?** Bila perlu tetap online, **hindari Plan B (tunnel)** — pakai
   hosting yang nyala terus.
 - **Hardening proporsional**: karena demo, cukup `APP_DEBUG=false` + HTTPS + docroot benar. Backup
