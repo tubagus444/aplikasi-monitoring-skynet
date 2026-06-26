@@ -22,7 +22,8 @@ Aplikasi web admin + Android untuk monitoring perbaikan jaringan. Studi kasus sk
 ## Perintah Umum
 
 ```bash
-# Jalankan semua service sekaligus (Laravel + Queue + Pail + Vite)
+# Jalankan semua service sekaligus (Laravel + Queue + Vite)
+# Catatan: pail (log viewer) dilepas dari script — butuh ext pcntl yang tak ada di Windows
 composer dev
 
 # Setup awal project

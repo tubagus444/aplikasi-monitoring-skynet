@@ -78,10 +78,6 @@ Penjelasan cara kerja end-to-end ada di [BELAJAR.md](BELAJAR.md).
 
 ### Langkah
 
-> ⚠️ **Jangan langsung `composer setup`.** Bawaan `.env.example` memakai `DB_CONNECTION=sqlite`
-> dan `SESSION_DRIVER=database`, padahal proyek ini memakai **MySQL** + `SESSION_DRIVER=file`.
-> Konfigurasikan `.env` lebih dulu (langkah 2–3) sebelum migrasi.
-
 ```bash
 # 1. Install dependency PHP
 composer install
@@ -91,36 +87,51 @@ cp .env.example .env        # Windows (PowerShell): Copy-Item .env.example .env
 php artisan key:generate
 ```
 
-**3. Edit `.env`** — sesuaikan database & session:
+`.env.example` sudah memakai konfigurasi proyek yang benar (**MySQL** `aplikasi_monitoring`
++ `SESSION_DRIVER=file`), jadi setelah disalin biasanya **tidak perlu** diubah. Sesuaikan hanya
+bila berbeda dari default:
 
 ```dotenv
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=aplikasi_monitoring
 DB_USERNAME=root
-DB_PASSWORD=
-
-SESSION_DRIVER=file
+DB_PASSWORD=            # isi bila MySQL Anda memakai password
 
 # Wajib untuk push notification Android (path ke service account JSON Firebase).
-# File JSON JANGAN di-commit (sudah ada di .gitignore).
+# File JSON JANGAN di-commit (sudah ada di .gitignore). Boleh dikosongkan saat dev.
 FIREBASE_CREDENTIALS=
 ```
 
 ```bash
-# 4. Buat database "aplikasi_monitoring" di MySQL (mis. lewat HeidiSQL / Laragon)
-
-# 5. Jalankan migrasi + isi data contoh (akun demo, jenis kerusakan, dll.)
+# 3. Siapkan database "aplikasi_monitoring" + isi data contoh (akun demo, jenis kerusakan, dll.)
+#    Jika database belum dibuat, perintah ini akan menawarkan membuatkannya otomatis (jawab "yes").
+#    Alternatif: buat manual lebih dulu via HeidiSQL / Laragon, lalu jalankan perintah di bawah.
 php artisan migrate --seed
 
-# 6. Build aset frontend
+# 4. Install dependency frontend
 npm install
-npm run build
+```
 
-# 7. Jalankan semua service sekaligus (server + queue + log + vite)
+**5. Jalankan aplikasi.** Cara termudah — satu perintah menjalankan semua service
+(server + queue + Vite):
+
+```bash
 composer dev
 ```
+
+> ⚠️ `composer dev` butuh `composer` ada di PATH. Bila terminal Anda tidak mengenali `composer`
+> (mis. Git Bash / terminal VS Code), jalankan dari **Terminal Laragon**, atau pakai perintah
+> setara tanpa composer:
+> ```bash
+> npx concurrently "php artisan serve" "php artisan queue:listen --tries=1" "npm run dev"
+> ```
+> Alternatif paling sederhana (cukup untuk lihat UI & login, tanpa queue worker):
+> jalankan `npm run dev` dan `php artisan serve` di dua terminal terpisah.
+
+> 🪟 **Catatan Windows:** log viewer `php artisan pail` sengaja **tidak** disertakan karena butuh
+> ekstensi `pcntl` yang tidak tersedia di Windows. Untuk melihat log, baca langsung
+> `storage/logs/laravel.log`.
+
+> 💡 Saat **development** pakai `npm run dev` (Vite hot-reload, sudah termasuk di atas) — **bukan**
+> `npm run build`. `npm run build` hanya untuk **produksi** (mengompilasi aset jadi file statis).
 
 Buka **http://localhost:8000** lalu login sebagai admin (lihat akun demo di bawah).
 
