@@ -34,6 +34,7 @@ new #[Layout('layouts.app')] class extends Component
             'damageType',
             'taskAssignments.technician',
             'workLogs.technician',
+            'photos' => fn ($q) => $q->oldest('created_at'),
         ])->find($this->detailId);
     }
 
@@ -211,6 +212,26 @@ new #[Layout('layouts.app')] class extends Component
                     </div>
                 @endif
             </div>
+
+            {{-- Foto bukti pekerjaan teknisi (sebelum/sesudah perbaikan) --}}
+            @if($report->photos->isNotEmpty())
+                <div class="border-t border-base-200 pt-4">
+                    <p class="text-xs text-base-content/50 uppercase mb-3">Foto Bukti Pekerjaan</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        @foreach($report->photos as $photo)
+                            <a href="{{ asset('storage/' . $photo->path) }}" target="_blank"
+                               class="block group relative rounded-xl overflow-hidden border border-base-200">
+                                <img src="{{ asset('storage/' . $photo->path) }}" alt="Foto bukti"
+                                     class="w-full h-28 object-cover" loading="lazy" />
+                                @if($photo->caption)
+                                    <span class="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent
+                                                 text-white text-[11px] px-2 py-1 truncate">{{ $photo->caption }}</span>
+                                @endif
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
 
             {{-- Timeline work_logs --}}
             @if($report->workLogs->isNotEmpty())

@@ -3,8 +3,10 @@
 namespace Tests\Feature\Web;
 
 use App\Models\DamageReport;
+use App\Models\ReportPhoto;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 /**
@@ -43,6 +45,22 @@ class RiwayatCategoryTest extends TestCase
 
         $response->assertOk();
         $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
+    }
+
+    public function test_modal_detail_menampilkan_foto_bukti_pekerjaan(): void
+    {
+        $report = DamageReport::factory()->selesai()->create();
+        $photo  = ReportPhoto::factory()->create([
+            'report_id' => $report->id,
+            'path'      => 'report-photos/bukti-uji.jpg',
+            'caption'   => 'Konektor diganti',
+        ]);
+
+        Volt::test('pages.riwayat')
+            ->call('openDetail', $report->id)
+            ->assertSee('Foto Bukti Pekerjaan')
+            ->assertSee('report-photos/bukti-uji.jpg')
+            ->assertSee('Konektor diganti');
     }
 
     public function test_ekspor_pdf_lengkap_dengan_laporan_non_pelanggan(): void

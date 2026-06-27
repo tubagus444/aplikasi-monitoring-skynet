@@ -129,6 +129,14 @@ GET /api/tasks/{id}
     "house_photos": [
       "http://host/storage/customer-photos/abc.jpg"
     ],
+    "repair_photos": [
+      {
+        "url": "http://host/storage/report-photos/xyz.jpg",
+        "caption": "Kondisi sesudah",
+        "technician": "Budi",
+        "uploaded_at": "2025-06-01T10:15:00+07:00"
+      }
+    ],
     "work_logs": [
       {
         "status": "ditugaskan",
@@ -143,6 +151,10 @@ GET /api/tasks/{id}
 - **`house_photos`** (hanya di endpoint detail): array URL absolut foto rumah pelanggan (alat bantu
   menemukan lokasi karena alamat perkampungan sering tak presisi). **Kosong `[]`** untuk kategori
   non-pelanggan atau bila pelanggan belum punya foto.
+- **`repair_photos`** (hanya di endpoint detail): array foto **bukti pekerjaan** yang diunggah teknisi
+  (lihat "Unggah Foto" di bawah). Tiap item `{ url, caption, technician, uploaded_at }`, urut naik
+  `uploaded_at`. **Kosong `[]`** bila belum ada foto. Beda peran dengan `house_photos`: `repair_photos`
+  = bukti hasil kerja (semua kategori), `house_photos` = wayfinding rumah (khusus pelanggan).
 
 ### Update Status Tugas
 ```
@@ -174,6 +186,33 @@ Body: { "status": "done", "description": "Ganti konektor RJ45" } // + catatan pe
 > **Idempotent:** status itu **milik laporan, bukan per-teknisi**. Bila laporan sudah di status
 > tujuan (teknisi lain di tim sudah memindahkannya), request dianggap **sukses `200`** tanpa
 > membuat work log ganda — bukan ditolak. Klien boleh memperlakukan 200 sebagai berhasil.
+
+### Unggah Foto
+
+Dua endpoint upload, **keduanya `multipart/form-data`** (bukan JSON) dan **di-scope ke kepemilikan
+tugas**: `{id}` = id tugas (assignment) milik teknisi yang login. Tugas milik orang lain → `404`.
+
+```
+POST /api/tasks/{id}/photos          # foto BUKTI PEKERJAAN (sebelum/sesudah) → report_photos
+POST /api/tasks/{id}/house-photos    # foto RUMAH PELANGGAN (wayfinding)      → customer_photos
+
+Form fields:
+  photo    : file gambar (wajib, jpg/png/…, maks 5 MB)
+  caption  : teks (opsional, maks 255)
+
+201: { "message": "...diunggah", "data": { "id": 12, "url": "http://host/storage/...", "caption": "..." } }
+422: validasi gagal (bukan gambar / >5 MB), ATAU house-photos pada tugas non-pelanggan
+404: tugas bukan milik teknisi
+```
+
+- **`/photos`** berlaku untuk **semua kategori** laporan; muncul kembali di `repair_photos` pada
+  endpoint detail. Boleh dipanggil berkali-kali (append — beberapa foto per laporan).
+- **`/house-photos`** hanya valid untuk laporan **kategori pelanggan** (punya `customer_id`); pada
+  tugas non-pelanggan dibalas `422`. Muncul kembali di `house_photos`. (Fase 2 modul Pelanggan —
+  melengkapi upload dari web admin.)
+- **Catatan desain:** sengaja lewat `/tasks/{id}/...` (bukan `/customers/{id}/photos` mentah) agar
+  otorisasi alami — teknisi hanya bisa menambah foto untuk tugas yang ditugaskan padanya. `uploaded_by`
+  terisi otomatis dari token.
 
 ---
 

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\ReportStatus;
 use App\Http\Controllers\Controller;
+use App\Models\CustomerPhoto;
+use App\Models\ReportPhoto;
 use App\Models\TaskAssignment;
 use App\Models\WorkLog;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +32,7 @@ class TaskController extends Controller
                 'report.damageType',
                 'report.workLogs.technician',
                 'report.customer.photos',
+                'report.photos.uploader',
             ])
             ->where('technician_id', $request->user()->id)
             ->findOrFail($id);
@@ -104,6 +107,82 @@ class TaskController extends Controller
         });
     }
 
+    /**
+     * Unggah foto BUKTI PEKERJAAN (sebelum/sesudah perbaikan) dari Android.
+     * Di-scope ke kepemilikan tugas: teknisi hanya bisa melampirkan foto ke
+     * laporan yang ditugaskan padanya (findOrFail menyaring assignment milik
+     * orang lain → 404). Append ke report_photos; file di disk `public`.
+     */
+    public function uploadPhoto(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'photo'   => 'required|image|max:5120', // maks 5 MB (foto kamera HP)
+            'caption' => 'nullable|string|max:255',
+        ]);
+
+        $assignment = TaskAssignment::where('technician_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $photo = ReportPhoto::create([
+            'report_id'   => $assignment->report_id,
+            'uploaded_by' => $request->user()->id,
+            'path'        => $request->file('photo')->store('report-photos', 'public'),
+            'caption'     => $request->input('caption'),
+        ]);
+
+        return response()->json([
+            'message' => 'Foto bukti pekerjaan diunggah',
+            'data'    => [
+                'id'      => $photo->id,
+                'url'     => asset('storage/' . $photo->path),
+                'caption' => $photo->caption,
+            ],
+        ], 201);
+    }
+
+    /**
+     * Unggah foto RUMAH PELANGGAN (wayfinding) dari Android — Fase 2 modul
+     * Pelanggan. Juga di-scope ke kepemilikan tugas (bukan endpoint
+     * `/customers/{id}` mentah yang bisa dipakai teknisi mana pun): customer
+     * diturunkan dari laporan tugas. Hanya valid untuk laporan kategori
+     * pelanggan (punya customer_id) — selain itu 422.
+     */
+    public function uploadHousePhoto(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'photo'   => 'required|image|max:5120',
+            'caption' => 'nullable|string|max:255',
+        ]);
+
+        $assignment = TaskAssignment::with('report')
+            ->where('technician_id', $request->user()->id)
+            ->findOrFail($id);
+
+        $customerId = $assignment->report->customer_id;
+
+        if (! $customerId) {
+            return response()->json([
+                'message' => 'Tugas ini bukan laporan pelanggan, tidak ada rumah untuk difoto',
+            ], 422);
+        }
+
+        $photo = CustomerPhoto::create([
+            'customer_id' => $customerId,
+            'uploaded_by' => $request->user()->id,
+            'path'        => $request->file('photo')->store('customer-photos', 'public'),
+            'caption'     => $request->input('caption'),
+        ]);
+
+        return response()->json([
+            'message' => 'Foto rumah pelanggan diunggah',
+            'data'    => [
+                'id'      => $photo->id,
+                'url'     => asset('storage/' . $photo->path),
+                'caption' => $photo->caption,
+            ],
+        ], 201);
+    }
+
     private function formatTask(TaskAssignment $assignment, bool $detailed = false): array
     {
         $report = $assignment->report;
@@ -133,6 +212,17 @@ class TaskController extends Controller
             $data['house_photos'] = $customer
                 ? $customer->photos->map(fn ($p) => asset('storage/' . $p->path))->values()
                 : [];
+
+            // Foto bukti pekerjaan teknisi (sebelum/sesudah) — apa pun kategorinya.
+            $data['repair_photos'] = $report->photos
+                ->sortBy('created_at')
+                ->values()
+                ->map(fn ($p) => [
+                    'url'        => asset('storage/' . $p->path),
+                    'caption'    => $p->caption,
+                    'technician' => $p->uploader?->name,
+                    'uploaded_at'=> $p->created_at?->toIso8601String(),
+                ]);
 
             $data['work_logs'] = $report->workLogs
                 ->sortBy('logged_at')

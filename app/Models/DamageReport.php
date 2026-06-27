@@ -118,4 +118,10 @@ class DamageReport extends Model
     {
         return $this->hasMany(LocationLog::class, 'report_id');
     }
+
+    /** Foto bukti pekerjaan teknisi (sebelum/sesudah perbaikan). */
+    public function photos()
+    {
+        return $this->hasMany(ReportPhoto::class, 'report_id');
+    }
 }

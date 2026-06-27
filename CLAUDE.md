@@ -52,7 +52,7 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-### Tabel (12 total)
+### Tabel (13 total)
 
 | Tabel | Keterangan |
 |---|---|
@@ -61,6 +61,7 @@ DB_PASSWORD=
 | `customer_photos` | Foto rumah pelanggan (wayfinding); path file di disk `public`, append-only |
 | `damage_types` | Jenis kerusakan jaringan |
 | `damage_reports` | Laporan kerusakan dari admin (punya `category` + `customer_id` nullable + `title`) |
+| `report_photos` | Foto bukti pekerjaan teknisi (sebelum/sesudah); path di disk `public`, append-only; diunggah dari Android |
 | `task_assignments` | Penugasan teknisi ke laporan |
 | `work_logs` | Log aktivitas pekerjaan teknisi |
 | `location_logs` | Log koordinat GPS teknisi (realtime) |
@@ -118,17 +119,21 @@ app/
                                     # laporan di dalam DB::transaction (simpan + sync atomik, anti setengah-jadi)
     GetActiveTechnicianLocations.php # Lokasi GPS terakhir teknisi aktif (1 query, anti N+1); dipakai monitoring & dashboard
   Http/Controllers/Api/ # AuthController, TaskController (detail tugas kirim category +
-                        # headline + kontak pelanggan + house_photos, null-safe non-pelanggan),
+                        # headline + kontak pelanggan + house_photos + repair_photos, null-safe
+                        # non-pelanggan; updateStatus terima description; uploadPhoto/uploadHousePhoto
+                        # = unggah foto bukti/rumah, di-scope kepemilikan tugas),
                         # LocationController, NotificationController
   Http/Controllers/     # ReportExportController (ekspor PDF riwayat — web, bukan Volt),
                         # CustomerExportController (ekspor PDF + Excel pelanggan, ikut filter scope)
   Exports/              # CustomersExport (maatwebsite/excel: FromQuery+WithHeadings+WithMapping
                         # +ShouldAutoSize) — pakai scope Customer::filtered (sama dgn halaman+PDF)
   Models/               # DamageReport, DamageType, TaskAssignment,
-                        # WorkLog, LocationLog, Notification, User, Customer, CustomerPhoto
+                        # WorkLog, LocationLog, Notification, User, Customer, CustomerPhoto, ReportPhoto
                         # Customer: scope filtered($search,$status) = sumber tunggal filter
                         # (halaman Pelanggan + ekspor PDF/Excel); relasi reports()/photos().
                         # CustomerPhoto: append-only (created_at saja), path di disk public.
+                        # ReportPhoto: foto bukti pekerjaan teknisi (sebelum/sesudah), append-only,
+                        # disk public; relasi DamageReport::photos(); diunggah via API tasks/{id}/photos.
                         # DamageReport: category (enum ReportCategory) + customer_id (FK nullOnDelete)
                         # + title; accessor $report->judul = customer_name ?? title (headline tabel/
                         # PDF/API, tak peduli kategori); snapshot customer_name/address tetap disimpan;
@@ -159,7 +164,9 @@ app/
 routes/
   web.php               # Volt routes (admin panel) + history/export + customers/export/{pdf,excel}
                         # + redirect `/`. Route ekspor pelanggan didaftar SEBELUM customers/{customer}
-  api.php               # 9 API endpoints (Android via Sanctum); /auth/login throttle:5,1
+  api.php               # 11 API endpoints (Android via Sanctum); /auth/login throttle:5,1
+                        # + tasks/{id}/photos (bukti pekerjaan) & tasks/{id}/house-photos
+                        # (foto rumah, Fase 2) — multipart, di-scope kepemilikan tugas
 resources/views/livewire/pages/
   dashboard.blade.php
   laporan/index.blade.php   # form punya pemilih kategori + search-select pelanggan (x-choices-offline)
@@ -177,7 +184,7 @@ database/
   migrations/           # Semua migrasi tabel (+ backfill_customers_from_damage_reports = data lama)
   seeders/              # Seeder untuk semua tabel utama (+ CustomerSeeder)
   factories/            # UserFactory, DamageTypeFactory, DamageReportFactory (sadar kategori),
-                        # CustomerFactory, CustomerPhotoFactory
+                        # CustomerFactory, CustomerPhotoFactory, ReportPhotoFactory
 config/
   firebase.php          # Konfigurasi kreait/laravel-firebase
 tests/
@@ -194,9 +201,12 @@ tests/
                         # PelangganCrudTest (CRUD + opsional→null + hapus jaga laporan),
                         # PelangganDetailTest (render + upload/hapus foto + ringkasan stats),
                         # PelangganExportTest (ekspor PDF/Excel ikut scope filtered),
-                        # RiwayatCategoryTest (judul/kategori di Riwayat + ekspor PDF non-pelanggan)
+                        # RiwayatCategoryTest (judul/kategori di Riwayat + ekspor PDF non-pelanggan
+                        # + modal detail tampilkan foto bukti pekerjaan)
                         # TaskTest juga menguji catatan pekerjaan (description) tersimpan & tampil di detail
-                        # (87 test cases, semua pass — 33 API + 54 Web)
+                        # TaskPhotoTest (Api): unggah foto bukti & rumah — 201/validasi gambar/
+                        # scope kepemilikan (404)/house-photos non-pelanggan ditolak (422)/repair_photos di detail
+                        # (94 test cases, semua pass — 39 API + 55 Web)
 ```
 
 ## Routes & Endpoint
@@ -286,8 +296,10 @@ tests/
 | Method | Path | Auth | Keterangan |
 |---|---|---|---|
 | GET | `/api/tasks` | token | Daftar tugas milik teknisi yang login. Tiap item: `category` + `headline` + kontak pelanggan (`phone`/`ip_address`/`subscription_package`, null untuk non-pelanggan) |
-| GET | `/api/tasks/{id}` | token | Detail tugas + riwayat status + `house_photos` (URL foto rumah; `[]` non-pelanggan). Kontrak lengkap di `CLAUDE_ANDROID.md` |
+| GET | `/api/tasks/{id}` | token | Detail tugas + riwayat status + `house_photos` (foto rumah) + `repair_photos` (foto bukti pekerjaan); `[]` bila kosong. Kontrak lengkap di `CLAUDE_ANDROID.md` |
 | POST | `/api/tasks/{id}/status` | token | Update status: `in_progress` atau `done`. Opsional `description` (catatan pekerjaan, `max:1000`) → disimpan di work log transisi, tampil di timeline Riwayat & API detail |
+| POST | `/api/tasks/{id}/photos` | token | Unggah foto **bukti pekerjaan** (multipart: `photo` wajib gambar ≤5MB + `caption` opsional) → `report_photos`. Di-scope kepemilikan tugas (404 bila bukan miliknya) |
+| POST | `/api/tasks/{id}/house-photos` | token | Unggah foto **rumah pelanggan** (Fase 2; field sama) → `customer_photos`. Hanya laporan kategori pelanggan (422 bila bukan) |
 
 **GPS Tracking**
 | Method | Path | Auth | Keterangan |
