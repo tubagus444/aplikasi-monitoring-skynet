@@ -158,7 +158,7 @@ new #[Layout('layouts.app')] class extends Component
                                     <span class="mt-0.5 shrink-0 w-1 h-full self-stretch min-h-8 rounded-full bg-error/60"></span>
                                 @endif
                                 <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-base-content truncate">{{ $report->customer_name }}</p>
+                                    <p class="text-sm font-semibold text-base-content truncate">{{ $report->judul }}</p>
                                     <p class="text-xs font-medium text-base-content/60 truncate">{{ $report->damageType->name }}</p>
                                     <p class="text-xs text-base-content/35 mt-0.5">{{ $report->created_at->diffForHumans() }}</p>
                                 </div>

@@ -59,7 +59,7 @@ class GetActiveTechnicianLocations
             return [
                 'id'          => $assignment->technician_id,
                 'name'        => $assignment->technician->name,
-                'customer'    => $assignment->report->customer_name,
+                'customer'    => $assignment->report->judul,
                 'address'     => $assignment->report->address,
                 'damage_type' => $assignment->report->damageType->name,
                 'latitude'    => $latest?->latitude,

@@ -50,6 +50,19 @@
     table.logs .col-tek { width: 110px; }
 @endsection
 
+@section('meta')
+    <table class="meta">
+        <tr>
+            <td class="label">Periode</td><td class="sep">:</td><td>{{ $meta['periodeLabel'] }}</td>
+            <td class="label">Dicetak</td><td class="sep">:</td><td>{{ $meta['printedAt'] }}</td>
+        </tr>
+        <tr>
+            <td class="label">Pencarian</td><td class="sep">:</td><td>{{ $meta['search'] ?: '—' }}</td>
+            <td class="label">Total</td><td class="sep">:</td><td>{{ $meta['total'] }} laporan selesai</td>
+        </tr>
+    </table>
+@endsection
+
 @section('content')
     @if($reports->isEmpty())
         <div class="empty">Belum ada laporan selesai untuk filter ini.</div>
@@ -61,12 +74,15 @@
             <div class="report">
                 <div class="head">
                     <div class="rid">Laporan #{{ $report->id }} &nbsp;•&nbsp; No. {{ $i + 1 }}</div>
-                    <span class="cust">{{ $report->customer_name }}</span>
+                    <span class="cust">{{ $report->judul }}</span>
                     <span class="badge badge-success">Selesai</span>
                     <div class="dtype">{{ $report->damageType?->name ?? '—' }}</div>
                 </div>
 
                 <table class="info">
+                    <tr>
+                        <td class="label">Kategori</td><td class="sep">:</td><td>{{ \App\Enums\ReportCategory::from($report->category)->label() }}</td>
+                    </tr>
                     <tr>
                         <td class="label">Alamat</td><td class="sep">:</td><td>{{ $report->address }}</td>
                     </tr>

@@ -24,6 +24,19 @@
     table.data .col-dur { width: 60px; }
 @endsection
 
+@section('meta')
+    <table class="meta">
+        <tr>
+            <td class="label">Periode</td><td class="sep">:</td><td>{{ $meta['periodeLabel'] }}</td>
+            <td class="label">Dicetak</td><td class="sep">:</td><td>{{ $meta['printedAt'] }}</td>
+        </tr>
+        <tr>
+            <td class="label">Pencarian</td><td class="sep">:</td><td>{{ $meta['search'] ?: '—' }}</td>
+            <td class="label">Total</td><td class="sep">:</td><td>{{ $meta['total'] }} laporan selesai</td>
+        </tr>
+    </table>
+@endsection
+
 @section('content')
     @if($reports->isEmpty())
         <div class="empty">Belum ada laporan selesai untuk filter ini.</div>
@@ -47,7 +60,12 @@
                     @endphp
                     <tr>
                         <td class="col-no">{{ $i + 1 }}</td>
-                        <td>{{ $report->customer_name }}</td>
+                        <td>
+                            {{ $report->judul }}
+                            @if($report->category !== \App\Enums\ReportCategory::Pelanggan->value)
+                                <div style="font-size:8px;color:#94a3b8;">{{ \App\Enums\ReportCategory::from($report->category)->label() }}</div>
+                            @endif
+                        </td>
                         <td>{{ $report->address }}</td>
                         <td>{{ $report->damageType?->name ?? '—' }}</td>
                         <td>{{ $teknisi ?: '—' }}</td>

@@ -1,9 +1,11 @@
 <?php
 
 use App\Actions\SyncReportTechnicians;
+use App\Enums\ReportCategory;
 use App\Enums\ReportStatus;
 use App\Enums\UserRole;
 use App\Livewire\Concerns\WithTableFilters;
+use App\Models\Customer;
 use App\Models\DamageReport;
 use App\Models\DamageType;
 use App\Models\User;
@@ -30,11 +32,18 @@ new #[Layout('layouts.app')] class extends Component
     public ?string $deletingName = null;
 
     // Form fields
-    public string $customer_name = '';
-    public string $address = '';
+    public string $category = '';
+    public ?int $customer_id = null;   // kategori pelanggan: pelanggan terpilih
+    public string $title = '';         // kategori jaringan/pemeliharaan: judul laporan
+    public string $address = '';       // alamat snapshot (pelanggan) / lokasi-area (non-pelanggan)
     public int|string $damage_type_id = '';
     public string $notes = '';
     public array $selectedTechnicians = [];
+
+    public function mount(): void
+    {
+        $this->category = ReportCategory::Pelanggan->value;
+    }
 
     #[Computed]
     public function reports()
@@ -44,6 +53,7 @@ new #[Layout('layouts.app')] class extends Component
                 $q->where(fn($w) =>
                     $w->where('customer_name', 'like', "%{$this->search}%")
                       ->orWhere('address', 'like', "%{$this->search}%")
+                      ->orWhere('title', 'like', "%{$this->search}%")
                 )
             )
             ->when($this->filterStatus, fn($q) =>
@@ -65,6 +75,19 @@ new #[Layout('layouts.app')] class extends Component
         return User::where('role', UserRole::Teknisi->value)->orderBy('name')->get();
     }
 
+    /** Pelanggan untuk search-select (kategori pelanggan). */
+    #[Computed]
+    public function customers()
+    {
+        return Customer::orderBy('name')->get();
+    }
+
+    /** Apakah kategori terpilih saat ini membutuhkan pelanggan terdaftar? */
+    public function butuhPelanggan(): bool
+    {
+        return ReportCategory::tryFrom($this->category)?->butuhPelanggan() ?? false;
+    }
+
     /** Opsi chip filter status: 'Semua' + seluruh status dari enum. */
     #[Computed]
     public function statusOptions(): array
@@ -83,7 +106,9 @@ new #[Layout('layouts.app')] class extends Component
     {
         $report = DamageReport::with('taskAssignments')->findOrFail($id);
         $this->editingId = $id;
-        $this->customer_name = $report->customer_name;
+        $this->category = $report->category;
+        $this->customer_id = $report->customer_id;
+        $this->title = $report->title ?? '';
         $this->address = $report->address;
         $this->damage_type_id = $report->damage_type_id;
         $this->notes = $report->notes ?? '';
@@ -93,36 +118,63 @@ new #[Layout('layouts.app')] class extends Component
 
     public function save(): void
     {
-        $this->validate([
-            'customer_name'  => 'required|string|max:255',
-            'address'        => 'required|string|max:255',
+        // Validasi bersyarat per kategori: pelanggan butuh customer_id (snapshot
+        // nama/alamat diambil dari pelanggan terpilih); jaringan/pemeliharaan butuh
+        // judul + lokasi (tanpa pelanggan). Sumber kebenaran = ReportCategory.
+        $rules = [
+            'category'       => 'required|in:' . implode(',', ReportCategory::values()),
             'damage_type_id' => 'required|exists:damage_types,id',
             'notes'          => 'nullable|string',
             // Tiap ID harus user dengan role teknisi — tolak ID palsu/manipulasi
             // (cegah error 500 dari FK) & cegah admin diselundupkan jadi teknisi.
             'selectedTechnicians'   => 'array',
             'selectedTechnicians.*' => 'integer|exists:users,id,role,' . UserRole::Teknisi->value,
-        ]);
+        ];
+
+        if ($this->butuhPelanggan()) {
+            $rules['customer_id'] = 'required|exists:customers,id';
+        } else {
+            $rules['title']   = 'required|string|max:255';
+            $rules['address'] = 'required|string|max:255';
+        }
+
+        $this->validate($rules);
+
+        // Susun atribut sesuai kategori. Untuk pelanggan: snapshot nama/alamat dari
+        // pelanggan terpilih (riwayat & PDF tak ikut berubah bila data pelanggan
+        // kelak diperbarui). Untuk non-pelanggan: customer_id/customer_name NULL.
+        if ($this->butuhPelanggan()) {
+            $customer = Customer::findOrFail($this->customer_id);
+            $attributes = [
+                'category'      => $this->category,
+                'customer_id'   => $customer->id,
+                'customer_name' => $customer->name,
+                'title'         => null,
+                'address'       => $customer->address,
+            ];
+        } else {
+            $attributes = [
+                'category'      => $this->category,
+                'customer_id'   => null,
+                'customer_name' => null,
+                'title'         => $this->title,
+                'address'       => $this->address,
+            ];
+        }
+
+        $attributes['damage_type_id'] = $this->damage_type_id;
+        $attributes['notes'] = $this->notes ?: null;
 
         // Simpan laporan + sinkron penugasan dalam satu transaksi: bila sync gagal
         // di tengah jalan, laporan tidak tertinggal dalam keadaan setengah jadi.
-        DB::transaction(function () {
+        DB::transaction(function () use ($attributes) {
             if ($this->editingId) {
                 $report = DamageReport::findOrFail($this->editingId);
-                $report->update([
-                    'customer_name'  => $this->customer_name,
-                    'address'        => $this->address,
-                    'damage_type_id' => $this->damage_type_id,
-                    'notes'          => $this->notes ?: null,
-                ]);
+                $report->update($attributes);
             } else {
-                $report = DamageReport::create([
-                    'created_by'     => auth()->id(),
-                    'customer_name'  => $this->customer_name,
-                    'address'        => $this->address,
-                    'damage_type_id' => $this->damage_type_id,
-                    'notes'          => $this->notes ?: null,
-                    'status'         => ReportStatus::Ditugaskan->value,
+                $report = DamageReport::create($attributes + [
+                    'created_by' => auth()->id(),
+                    'status'     => ReportStatus::Ditugaskan->value,
                 ]);
             }
 
@@ -144,7 +196,7 @@ new #[Layout('layouts.app')] class extends Component
             return;
         }
         $this->deletingId = $id;
-        $this->deletingName = $report->customer_name;
+        $this->deletingName = $report->judul;
         $this->showDeleteModal = true;
     }
 
@@ -160,7 +212,9 @@ new #[Layout('layouts.app')] class extends Component
 
     public function resetForm(): void
     {
-        $this->customer_name = '';
+        $this->category = ReportCategory::Pelanggan->value;
+        $this->customer_id = null;
+        $this->title = '';
         $this->address = '';
         $this->damage_type_id = '';
         $this->notes = '';
@@ -214,7 +268,14 @@ new #[Layout('layouts.app')] class extends Component
         @foreach($this->reports as $report)
             <tr class="hover:bg-base-200 transition-colors">
                 <td class="text-base-content/40 text-xs">{{ $report->id }}</td>
-                <td class="font-medium">{{ $report->customer_name }}</td>
+                <td class="font-medium">
+                    <div>{{ $report->judul }}</div>
+                    @if($report->category !== \App\Enums\ReportCategory::Pelanggan->value)
+                        <div class="text-xs font-normal text-base-content/40">
+                            {{ \App\Enums\ReportCategory::from($report->category)->label() }}
+                        </div>
+                    @endif
+                </td>
                 <td class="text-sm text-base-content/70 max-w-40 truncate">{{ $report->address }}</td>
                 <td class="text-sm">{{ $report->damageType->name }}</td>
                 <td class="text-sm">
@@ -252,22 +313,64 @@ new #[Layout('layouts.app')] class extends Component
 
     {{-- Modal Buat / Edit Laporan --}}
     <x-mary-modal wire:model="showFormModal" :title="$editingId ? 'Edit Laporan' : 'Buat Laporan Baru'" separator>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <x-mary-input
-                label="Nama Pelanggan"
-                wire:model="customer_name"
-                placeholder="Pak Budi Santoso"
-                icon="o-user"
-                required
-            />
-            <x-mary-input
-                label="Alamat"
-                wire:model="address"
-                placeholder="Jl. Melati No.4, RT 03/RW 05"
-                icon="o-map-pin"
-                required
-            />
+        {{-- Pemilih kategori: men-toggle isi form (pelanggan vs jaringan/pemeliharaan) --}}
+        <div>
+            <label class="block text-sm font-medium text-base-content/70 mb-2">Kategori Laporan</label>
+            @php
+                $categoryCards = [
+                    \App\Enums\ReportCategory::Pelanggan->value    => ['icon' => 'o-user',               'color' => 'text-primary',   'title' => 'Pelanggan',    'desc' => 'Gangguan 1 pelanggan'],
+                    \App\Enums\ReportCategory::Jaringan->value     => ['icon' => 'o-signal',             'color' => 'text-info',      'title' => 'Jaringan',     'desc' => 'Infrastruktur, banyak'],
+                    \App\Enums\ReportCategory::Pemeliharaan->value => ['icon' => 'o-wrench-screwdriver', 'color' => 'text-secondary', 'title' => 'Pemeliharaan', 'desc' => 'Perawatan rutin'],
+                ];
+            @endphp
+            <div class="grid grid-cols-3 gap-3">
+                @foreach(\App\Enums\ReportCategory::cases() as $cat)
+                    <label class="flex flex-col items-center text-center gap-1.5 cursor-pointer px-2 py-3 rounded-xl border border-base-300 hover:bg-base-200/60 transition-colors has-checked:border-primary has-checked:bg-primary/5">
+                        <input type="radio" wire:model.live="category" value="{{ $cat->value }}" class="sr-only" />
+                        <x-mary-icon name="{{ $categoryCards[$cat->value]['icon'] }}" class="w-6 h-6 {{ $categoryCards[$cat->value]['color'] }}" />
+                        <span class="text-sm font-semibold leading-tight">{{ $categoryCards[$cat->value]['title'] }}</span>
+                        <span class="text-xs text-base-content/50 leading-tight">{{ $categoryCards[$cat->value]['desc'] }}</span>
+                    </label>
+                @endforeach
+            </div>
         </div>
+
+        {{-- Field bersyarat per kategori --}}
+        @if($this->butuhPelanggan())
+            <div class="mt-4">
+                <x-choices-offline
+                    label="Pelanggan"
+                    wire:model="customer_id"
+                    :options="$this->customers"
+                    option-label="name"
+                    option-sub-label="address"
+                    single
+                    searchable
+                    clearable
+                    icon="o-user"
+                    placeholder="Cari & pilih pelanggan terdaftar..."
+                    no-result-text="Pelanggan tidak ditemukan"
+                    hint="Nama & alamat disimpan sebagai snapshot saat laporan dibuat"
+                />
+            </div>
+        @else
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <x-mary-input
+                    label="Judul Laporan"
+                    wire:model="title"
+                    placeholder="mis. Kabel utama putus area Cibitung"
+                    icon="o-bolt"
+                    required
+                />
+                <x-mary-input
+                    label="Lokasi / Area Terdampak"
+                    wire:model="address"
+                    placeholder="mis. Backbone RT 03, Cibitung"
+                    icon="o-map-pin"
+                    required
+                />
+            </div>
+        @endif
 
         <div class="mt-4">
             <x-select

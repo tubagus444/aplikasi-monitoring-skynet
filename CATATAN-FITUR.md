@@ -23,7 +23,7 @@
 5. [Foto bukti perbaikan](#5-foto-bukti-perbaikan) 🟡 📱
 6. [Keterangan (`description`) pada work log](#6-keterangan-description-pada-work-log) 🟡 📱
 7. [UNIQUE constraint `task_assignments (report_id, technician_id)`](#7-unique-constraint-task_assignments-report_id-technician_id) 🟡
-8. [Kontak pelanggan (nomor telepon)](#8-kontak-pelanggan-nomor-telepon) 🟡
+8. [Kontak pelanggan (nomor telepon)](#8-kontak-pelanggan-nomor-telepon) ✅ USANG (jadi `customers.phone` di Rencana #1)
 9. [Masa berlaku token Android (Sanctum expiration)](#9-masa-berlaku-token-android-sanctum-expiration) 🟡
 10. [Catatan kecil lainnya](#10-catatan-kecil-lainnya) 💡
 11. [Rencana deploy ke hosting (shared & VPS)](#11-rencana-deploy-ke-hosting-shared--vps) 🟡 📱
@@ -306,27 +306,15 @@ index ini **sabuk pengaman level DB**. Murah dan menambah poin "integritas refer
 
 ---
 
-## 8. Kontak pelanggan (nomor telepon) 🟡
+## 8. Kontak pelanggan (nomor telepon) ✅ USANG — sudah terpenuhi
 
-**Apa:** Menambah kolom `customer_phone` (nullable) pada `damage_reports`.
+> **Tidak relevan lagi.** Digantikan sepenuhnya oleh **Rencana #1 Modul Pelanggan** (selesai
+> 2026-06-27, lihat Arsip di [RENCANA-PENGEMBANGAN.md](RENCANA-PENGEMBANGAN.md)). Nomor telepon kini
+> jadi kolom `customers.phone` (bukan `damage_reports.customer_phone`), tampil di halaman/detail
+> Pelanggan & PDF, dan dikirim ke Android via `TaskController::formatTask` (field `phone`, untuk
+> kategori pelanggan). Tidak perlu dikerjakan lagi.
 
-**Kenapa:** Laporan hanya menyimpan `customer_name` + `address`
-([migrasi damage_reports](database/migrations/2026_06_05_145704_create_damage_reports_table.php)).
-Untuk aplikasi perbaikan jaringan, nomor pelanggan biasanya penting agar teknisi bisa mengabari
-sebelum datang. Penguji bisa menanyakan alur kontak pelanggan ("teknisi menghubungi pelanggan
-bagaimana?").
-
-**Bagaimana:**
-- Migration: `$table->string('customer_phone')->nullable()->after('customer_name');`
-- Tambah ke `$fillable` [DamageReport](app/Models/DamageReport.php), input di form Laporan
-  ([laporan/index](resources/views/livewire/pages/laporan/index.blade.php)) dengan ikon `o-phone`
-  dan validasi (mis. `nullable|string|max:20`).
-- Tampilkan di detail/modal & PDF; kirim juga di
-  [TaskController::formatTask](app/Http/Controllers/Api/TaskController.php#L95) agar muncul di Android
-  (bisa jadi link `tel:`).
-
-**Catatan:** Nullable supaya data lama tetap valid. Validasi format secukupnya saja — format nomor
-HP Indonesia bervariasi, jangan terlalu ketat.
+~~**Apa:** Menambah kolom `customer_phone` (nullable) pada `damage_reports`.~~ (ide awal, kini usang)
 
 ---
 

@@ -77,22 +77,36 @@ GET /api/tasks
       "id": 1,
       "report_id": 5,
       "status": "ditugaskan",
+      "category": "pelanggan",
+      "headline": "Pak Ahmad",
       "customer": "Pak Ahmad",
       "address": "Jl. Mawar No.3, Cikarang",
       "damage_type": "Kabel Putus",
       "notes": "Sinyal hilang total sejak kemarin",
-      "assigned_at": "2025-06-01T08:00:00+07:00"
+      "assigned_at": "2025-06-01T08:00:00+07:00",
+      "phone": "081234567890",
+      "ip_address": "192.168.10.5",
+      "subscription_package": "20 Mbps"
     }
   ]
 }
 ```
 - `status` di endpoint ini hanya `"ditugaskan"` atau `"sedang_memperbaiki"`. Tugas `"selesai"`
   tidak muncul.
-- **`address` adalah teks biasa, BUKAN koordinat.** `damage_reports` tidak menyimpan lat/lng
-  pelanggan — tidak ada pin pelanggan / navigasi-ke-lokasi. GPS yang dikirim klien hanya posisi
-  teknisi (untuk dipantau admin).
+- **`category`** = `"pelanggan"` | `"jaringan"` | `"pemeliharaan"`. **UI detail tugas wajib adaptif
+  per kategori** (lihat di bawah).
+- **`headline`** = judul tampilan apa pun kategorinya (`customer ?? title`). Pakai ini sebagai
+  judul kartu tugas. Untuk `pelanggan` = nama pelanggan; untuk `jaringan`/`pemeliharaan` = judul
+  laporan.
+- **Field khusus pelanggan** (`customer`, `phone`, `ip_address`, `subscription_package`):
+  terisi hanya untuk `category == "pelanggan"`; untuk kategori lain **`null`**. `customer` adalah
+  snapshot nama saat laporan dibuat.
+- **`address`** = alamat pelanggan (kategori pelanggan) **atau** lokasi/area terdampak (kategori
+  jaringan/pemeliharaan). Tetap teks biasa, **BUKAN koordinat** — tidak ada pin/navigasi pelanggan.
+  GPS yang dikirim klien hanya posisi teknisi (untuk dipantau admin). Untuk membantu menemukan
+  rumah, pakai **`house_photos`** di endpoint detail.
 
-### Detail Tugas — sama dengan list + `work_logs`
+### Detail Tugas — sama dengan list + `house_photos` + `work_logs`
 ```
 GET /api/tasks/{id}
 
@@ -102,11 +116,19 @@ GET /api/tasks/{id}
     "id": 1,
     "report_id": 5,
     "status": "ditugaskan",
+    "category": "pelanggan",
+    "headline": "Pak Ahmad",
     "customer": "Pak Ahmad",
     "address": "Jl. Mawar No.3, Cikarang",
     "damage_type": "Kabel Putus",
     "notes": "Sinyal hilang total",
     "assigned_at": "2025-06-01T08:00:00+07:00",
+    "phone": "081234567890",
+    "ip_address": "192.168.10.5",
+    "subscription_package": "20 Mbps",
+    "house_photos": [
+      "http://host/storage/customer-photos/abc.jpg"
+    ],
     "work_logs": [
       {
         "status": "ditugaskan",
@@ -118,6 +140,9 @@ GET /api/tasks/{id}
   }
 }
 ```
+- **`house_photos`** (hanya di endpoint detail): array URL absolut foto rumah pelanggan (alat bantu
+  menemukan lokasi karena alamat perkampungan sering tak presisi). **Kosong `[]`** untuk kategori
+  non-pelanggan atau bila pelanggan belum punya foto.
 
 ### Update Status Tugas
 ```

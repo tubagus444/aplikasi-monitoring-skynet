@@ -42,6 +42,7 @@ class PageRenderTest extends TestCase
             '/reports'    => 'Manajemen Laporan',
             '/monitoring' => 'Monitoring',
             '/history'    => 'Riwayat',
+            '/customers'  => 'Pelanggan',
             '/users'      => 'Pengguna',
         ];
 

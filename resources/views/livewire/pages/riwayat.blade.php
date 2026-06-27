@@ -83,7 +83,7 @@ new #[Layout('layouts.app')] class extends Component
     <div class="flex flex-wrap items-center gap-3 mb-4">
         <x-mary-input
             wire:model.live.debounce="search"
-            placeholder="Cari pelanggan atau alamat..."
+            placeholder="Cari pelanggan, alamat, atau judul..."
             icon="o-magnifying-glass"
             class="input-sm w-56 rounded-full"
         />
@@ -113,7 +113,14 @@ new #[Layout('layouts.app')] class extends Component
         @foreach($this->riwayat as $report)
             <tr class="hover:bg-base-200 transition-colors">
                 <td class="text-base-content/40 text-xs">{{ $report->id }}</td>
-                <td class="font-medium text-sm">{{ $report->customer_name }}</td>
+                <td class="font-medium text-sm">
+                    <div>{{ $report->judul }}</div>
+                    @if($report->category !== \App\Enums\ReportCategory::Pelanggan->value)
+                        <div class="text-xs font-normal text-base-content/40">
+                            {{ \App\Enums\ReportCategory::from($report->category)->label() }}
+                        </div>
+                    @endif
+                </td>
                 <td class="text-sm text-base-content/70 max-w-35 truncate">{{ $report->address }}</td>
                 <td class="text-sm">{{ $report->damageType->name }}</td>
                 <td class="text-sm">
@@ -154,8 +161,8 @@ new #[Layout('layouts.app')] class extends Component
             <div class="flex items-start justify-between gap-3 mb-5">
                 <div class="min-w-0">
                     <p class="text-xs text-base-content/40">Laporan #{{ $report->id }}</p>
-                    <h3 class="text-lg font-bold text-base-content truncate">{{ $report->customer_name }}</h3>
-                    <p class="text-sm text-base-content/60">{{ $report->damageType->name }}</p>
+                    <h3 class="text-lg font-bold text-base-content truncate">{{ $report->judul }}</h3>
+                    <p class="text-sm text-base-content/60">{{ \App\Enums\ReportCategory::from($report->category)->label() }} &middot; {{ $report->damageType->name }}</p>
                 </div>
                 <x-status-pill :status="$report->status" class="shrink-0" />
             </div>

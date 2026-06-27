@@ -97,18 +97,9 @@
         {{ $meta['brand'] }} &nbsp;•&nbsp; Halaman <span class="pagenum"></span> dari <span class="pagetotal"></span>
     </div>
 
-    {{-- Judul + meta filter --}}
+    {{-- Judul + meta filter (tiap template isi sendiri via @section('meta')) --}}
     <div class="doc-title">@yield('title', 'Laporan Riwayat Perbaikan')</div>
-    <table class="meta">
-        <tr>
-            <td class="label">Periode</td><td class="sep">:</td><td>{{ $meta['periodeLabel'] }}</td>
-            <td class="label">Dicetak</td><td class="sep">:</td><td>{{ $meta['printedAt'] }}</td>
-        </tr>
-        <tr>
-            <td class="label">Pencarian</td><td class="sep">:</td><td>{{ $meta['search'] ?: '—' }}</td>
-            <td class="label">Total</td><td class="sep">:</td><td>{{ $meta['total'] }} laporan selesai</td>
-        </tr>
-    </table>
+    @yield('meta')
 
     @yield('content')
 </body>

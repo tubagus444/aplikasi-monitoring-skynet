@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\ReportCategory;
+use App\Models\Customer;
+use App\Models\CustomerPhoto;
 use App\Models\DamageReport;
 use App\Models\TaskAssignment;
 use App\Models\User;
@@ -54,6 +57,59 @@ class TaskTest extends TestCase
 
         $response->assertOk()
             ->assertJsonStructure(['data' => ['id', 'status', 'customer', 'work_logs']]);
+    }
+
+    public function test_detail_tugas_pelanggan_menyertakan_kontak_dan_foto_rumah(): void
+    {
+        $teknisi  = User::factory()->teknisi()->create();
+        $customer = Customer::factory()->create([
+            'name'                 => 'Pak Hendra',
+            'phone'                => '081234567890',
+            'ip_address'           => '192.168.10.5',
+            'subscription_package' => '20 Mbps',
+        ]);
+        CustomerPhoto::create([
+            'customer_id' => $customer->id,
+            'uploaded_by' => $teknisi->id,
+            'path'        => 'customer-photos/rumah.jpg',
+        ]);
+        $report = DamageReport::factory()->create([
+            'category'      => ReportCategory::Pelanggan->value,
+            'customer_id'   => $customer->id,
+            'customer_name' => 'Pak Hendra',
+        ]);
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $response = $this->actingAs($teknisi, 'sanctum')->getJson("/api/tasks/{$assignment->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.category', ReportCategory::Pelanggan->value)
+            ->assertJsonPath('data.headline', 'Pak Hendra')
+            ->assertJsonPath('data.phone', '081234567890')
+            ->assertJsonPath('data.ip_address', '192.168.10.5')
+            ->assertJsonPath('data.subscription_package', '20 Mbps');
+
+        $this->assertCount(1, $response->json('data.house_photos'));
+        $this->assertStringContainsString('customer-photos/rumah.jpg', $response->json('data.house_photos.0'));
+    }
+
+    public function test_tugas_non_pelanggan_field_pelanggan_kosong(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+        $report  = DamageReport::factory()->jaringan()->create(['title' => 'Kabel Utama Putus']);
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $response = $this->actingAs($teknisi, 'sanctum')->getJson("/api/tasks/{$assignment->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.category', ReportCategory::Jaringan->value)
+            ->assertJsonPath('data.headline', 'Kabel Utama Putus')
+            ->assertJsonPath('data.customer', null)
+            ->assertJsonPath('data.phone', null)
+            ->assertJsonPath('data.ip_address', null)
+            ->assertJsonPath('data.subscription_package', null);
+
+        $this->assertSame([], $response->json('data.house_photos'));
     }
 
     public function test_teknisi_dapat_update_status_ke_sedang_memperbaiki(): void

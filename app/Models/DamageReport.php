@@ -14,7 +14,10 @@ class DamageReport extends Model
     protected $fillable = [
         'created_by',
         'damage_type_id',
+        'category',
+        'customer_id',
         'customer_name',
+        'title',
         'address',
         'notes',
         'status',
@@ -38,6 +41,7 @@ class DamageReport extends Model
             ->when($search, fn ($q) => $q->where(fn ($w) =>
                 $w->where('customer_name', 'like', "%{$search}%")
                   ->orWhere('address', 'like', "%{$search}%")
+                  ->orWhere('title', 'like', "%{$search}%")
             ))
             ->when($period === 'minggu', fn ($q) =>
                 $q->whereBetween('completed_at', [now()->startOfWeek(), now()->endOfWeek()])
@@ -47,6 +51,16 @@ class DamageReport extends Model
                   ->whereYear('completed_at', now()->year)
             )
             ->latest('completed_at');
+    }
+
+    /**
+     * Headline laporan untuk tabel/PDF/Android — satu sumber tampilan tak peduli
+     * kategori. Kategori `pelanggan` pakai snapshot `customer_name`; kategori
+     * `jaringan`/`pemeliharaan` pakai `title`.
+     */
+    protected function judul(): Attribute
+    {
+        return Attribute::get(fn () => $this->customer_name ?? $this->title);
     }
 
     /**
@@ -83,6 +97,11 @@ class DamageReport extends Model
     public function damageType()
     {
         return $this->belongsTo(DamageType::class, 'damage_type_id');
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
     }
 
     public function taskAssignments()

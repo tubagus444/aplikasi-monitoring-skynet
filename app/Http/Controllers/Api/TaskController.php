@@ -14,7 +14,7 @@ class TaskController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $tasks = TaskAssignment::with(['report.damageType'])
+        $tasks = TaskAssignment::with(['report.damageType', 'report.customer'])
             ->where('technician_id', $request->user()->id)
             ->whereHas('report', fn($q) => $q->whereIn('status', [ReportStatus::Ditugaskan->value, ReportStatus::SedangMemperbaiki->value]))
             ->latest('assigned_at')
@@ -26,7 +26,11 @@ class TaskController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $assignment = TaskAssignment::with(['report.damageType', 'report.workLogs.technician'])
+        $assignment = TaskAssignment::with([
+                'report.damageType',
+                'report.workLogs.technician',
+                'report.customer.photos',
+            ])
             ->where('technician_id', $request->user()->id)
             ->findOrFail($id);
 
@@ -95,19 +99,33 @@ class TaskController extends Controller
     private function formatTask(TaskAssignment $assignment, bool $detailed = false): array
     {
         $report = $assignment->report;
+        // Null untuk laporan non-pelanggan (kategori jaringan/pemeliharaan).
+        $customer = $report->customer;
 
         $data = [
             'id'           => $assignment->id,
             'report_id'    => $report->id,
             'status'       => $report->status,
+            'category'     => $report->category,
+            // Headline tampilan, tak peduli kategori: customer_name ?? title.
+            'headline'     => $report->judul,
             'customer'     => $report->customer_name,
             'address'      => $report->address,
             'damage_type'  => $report->damageType->name,
             'notes'        => $report->notes,
             'assigned_at'  => $assignment->assigned_at?->toIso8601String(),
+            // Kontak & info teknis pelanggan — null untuk laporan non-pelanggan.
+            'phone'                => $customer?->phone,
+            'ip_address'           => $customer?->ip_address,
+            'subscription_package' => $customer?->subscription_package,
         ];
 
         if ($detailed) {
+            // Foto rumah (wayfinding) — URL absolut; kosong untuk non-pelanggan.
+            $data['house_photos'] = $customer
+                ? $customer->photos->map(fn ($p) => asset('storage/' . $p->path))->values()
+                : [];
+
             $data['work_logs'] = $report->workLogs
                 ->sortBy('logged_at')
                 ->values()

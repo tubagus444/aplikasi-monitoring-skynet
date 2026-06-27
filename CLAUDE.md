@@ -15,6 +15,7 @@ Aplikasi web admin + Android untuk monitoring perbaikan jaringan. Studi kasus sk
 | Auth API | Laravel Sanctum (token-based, untuk Android) |
 | Push Notification | Firebase FCM (`kreait/laravel-firebase v7`) |
 | Ekspor PDF | `barryvdh/laravel-dompdf` (dompdf) |
+| Ekspor Excel | `maatwebsite/excel` (PhpSpreadsheet) |
 | Database | MySQL via Laragon |
 | Mobile | Android (Kotlin) — repo terpisah |
 | Dev Environment | Laragon (Windows) |
@@ -51,13 +52,15 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-### Tabel (10 total)
+### Tabel (12 total)
 
 | Tabel | Keterangan |
 |---|---|
 | `users` | Admin dan teknisi |
+| `customers` | Pelanggan (entitas tersendiri); laporan kategori "pelanggan" menunjuk ke sini via FK |
+| `customer_photos` | Foto rumah pelanggan (wayfinding); path file di disk `public`, append-only |
 | `damage_types` | Jenis kerusakan jaringan |
-| `damage_reports` | Laporan kerusakan dari admin |
+| `damage_reports` | Laporan kerusakan dari admin (punya `category` + `customer_id` nullable + `title`) |
 | `task_assignments` | Penugasan teknisi ke laporan |
 | `work_logs` | Log aktivitas pekerjaan teknisi |
 | `location_logs` | Log koordinat GPS teknisi (realtime) |
@@ -91,10 +94,11 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 ### Halaman Web Admin (sudah diimplementasi)
 
 1. Dashboard — stat cards data nyata + laporan terbaru
-2. Manajemen Laporan — full CRUD + filter + search + assign teknisi
+2. Manajemen Laporan — full CRUD + filter + search + assign teknisi + **pemilih kategori** (pelanggan vs jaringan/pemeliharaan)
 3. Monitoring GPS — Leaflet.js realtime, polling 10 detik
 4. Riwayat — laporan selesai + filter periode + detail modal + **ekspor PDF** (mode ringkasan & lengkap)
 5. Pengguna — full CRUD admin & teknisi
+6. Pelanggan — full CRUD + filter status + search + **detail** (galeri foto rumah + ringkasan + riwayat perbaikan per pelanggan) + **ekspor PDF & Excel**
 
 ### Layar Android Teknisi (direncanakan 6 layar)
 
@@ -113,11 +117,21 @@ app/
     SyncReportTechnicians.php       # Sync penugasan teknisi (diff-based) + notifikasi; dipanggil save()
                                     # laporan di dalam DB::transaction (simpan + sync atomik, anti setengah-jadi)
     GetActiveTechnicianLocations.php # Lokasi GPS terakhir teknisi aktif (1 query, anti N+1); dipakai monitoring & dashboard
-  Http/Controllers/Api/ # AuthController, TaskController,
+  Http/Controllers/Api/ # AuthController, TaskController (detail tugas kirim category +
+                        # headline + kontak pelanggan + house_photos, null-safe non-pelanggan),
                         # LocationController, NotificationController
-  Http/Controllers/     # ReportExportController (ekspor PDF — web, bukan Volt)
+  Http/Controllers/     # ReportExportController (ekspor PDF riwayat — web, bukan Volt),
+                        # CustomerExportController (ekspor PDF + Excel pelanggan, ikut filter scope)
+  Exports/              # CustomersExport (maatwebsite/excel: FromQuery+WithHeadings+WithMapping
+                        # +ShouldAutoSize) — pakai scope Customer::filtered (sama dgn halaman+PDF)
   Models/               # DamageReport, DamageType, TaskAssignment,
-                        # WorkLog, LocationLog, Notification, User
+                        # WorkLog, LocationLog, Notification, User, Customer, CustomerPhoto
+                        # Customer: scope filtered($search,$status) = sumber tunggal filter
+                        # (halaman Pelanggan + ekspor PDF/Excel); relasi reports()/photos().
+                        # CustomerPhoto: append-only (created_at saja), path di disk public.
+                        # DamageReport: category (enum ReportCategory) + customer_id (FK nullOnDelete)
+                        # + title; accessor $report->judul = customer_name ?? title (headline tabel/
+                        # PDF/API, tak peduli kategori); snapshot customer_name/address tetap disimpan;
                         # DamageReport: scope riwayatSelesai($search,$period);
                         # kolom completed_at = sumber kebenaran WAKTU SELESAI
                         # (jangan pakai updated_at untuk waktu/durasi/filter selesai);
@@ -136,25 +150,34 @@ app/
                         # UserRole::X->value, hindari literal 'admin'/'teknisi'. Kolom
                         # users.role TIDAK di-cast (sama pola dengan status). options()
                         # untuk chip filter, values() untuk aturan validasi in:
+    CustomerStatus.php  # Sumber kebenaran status langganan (aktif/isolir/berhenti); pola sama
+                        # dgn UserRole (tidak di-cast, options()/values())
+    ReportCategory.php  # Sumber kebenaran kategori laporan (pelanggan/jaringan/pemeliharaan);
+                        # butuhPelanggan() = apakah kategori wajib customer_id (validasi form)
   Observers/
     NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
-  web.php               # Volt routes (admin panel) + history/export + redirect `/`
+  web.php               # Volt routes (admin panel) + history/export + customers/export/{pdf,excel}
+                        # + redirect `/`. Route ekspor pelanggan didaftar SEBELUM customers/{customer}
   api.php               # 9 API endpoints (Android via Sanctum); /auth/login throttle:5,1
 resources/views/livewire/pages/
   dashboard.blade.php
-  laporan/index.blade.php
+  laporan/index.blade.php   # form punya pemilih kategori + search-select pelanggan (x-choices-offline)
   monitoring.blade.php
   riwayat.blade.php
   pengguna/index.blade.php
+  pelanggan/index.blade.php  # CRUD pelanggan + filter status + search + ekspor PDF/Excel
+  pelanggan/detail.blade.php # galeri foto rumah (upload/hapus) + ringkasan + riwayat perbaikan
 resources/views/components/ # Komponen Blade reusable panel admin: status-pill,
                         # table-card, filter-chips, confirm-delete-modal (lihat "Bahasa Visual")
-resources/views/pdf/    # Template dompdf: layout, riwayat-ringkasan,
-                        # riwayat-lengkap (CSS inline, font DejaVu Sans)
+resources/views/pdf/    # Template dompdf: layout (kop + footer + @yield('meta')),
+                        # riwayat-ringkasan, riwayat-lengkap, pelanggan
+                        # (CSS inline, font DejaVu Sans; tiap template isi @section('meta') sendiri)
 database/
-  migrations/           # Semua migrasi tabel
-  seeders/              # Seeder untuk semua tabel utama
-  factories/            # UserFactory, DamageTypeFactory, DamageReportFactory
+  migrations/           # Semua migrasi tabel (+ backfill_customers_from_damage_reports = data lama)
+  seeders/              # Seeder untuk semua tabel utama (+ CustomerSeeder)
+  factories/            # UserFactory, DamageTypeFactory, DamageReportFactory (sadar kategori),
+                        # CustomerFactory, CustomerPhotoFactory
 config/
   firebase.php          # Konfigurasi kreait/laravel-firebase
 tests/
@@ -167,8 +190,12 @@ tests/
                         # CompletedAtTest (completed_at + durasiPenanganan terpusat + modal),
                         # UserDeletionPreservesHistoryTest (hapus user → riwayat utuh, FK null),
                         # PenggunaDeletionGuardTest (deleteUser tolak hapus diri sendiri walau lewati confirmDelete),
-                        # TableFiltersResetTest (trait WithTableFilters: ubah search/filter reset paginasi ke hal. 1)
-                        # (61 test cases, semua pass — 28 API + 33 Web)
+                        # TableFiltersResetTest (trait WithTableFilters: ubah search/filter reset paginasi ke hal. 1),
+                        # PelangganCrudTest (CRUD + opsional→null + hapus jaga laporan),
+                        # PelangganDetailTest (render + upload/hapus foto + ringkasan stats),
+                        # PelangganExportTest (ekspor PDF/Excel ikut scope filtered),
+                        # RiwayatCategoryTest (judul/kategori di Riwayat + ekspor PDF non-pelanggan)
+                        # (84 test cases, semua pass — 30 API + 54 Web)
 ```
 
 ## Routes & Endpoint
@@ -229,11 +256,19 @@ tests/
 | PUT | `/users/{id}` | Edit data pengguna |
 | DELETE | `/users/{id}` | Hapus pengguna |
 
-**Riwayat & Ekspor** _(route HTTP riil)_
+**Manajemen Pelanggan**
+| Method | Path | Keterangan |
+|---|---|---|
+| GET | `/customers` | Daftar pelanggan + filter status + search (aksi CRUD = Livewire action) |
+| GET | `/customers/{customer}` | Detail pelanggan: galeri foto rumah (upload/hapus) + ringkasan + riwayat perbaikan |
+
+**Ekspor** _(route HTTP riil)_
 | Method | Path | Keterangan |
 |---|---|---|
 | GET | `/history` | Daftar laporan selesai + filter periode + detail modal |
 | GET | `/history/export` | Ekspor PDF riwayat. Query: `mode` (`ringkasan`\|`lengkap`), `search`, `period` (`minggu`\|`bulan`). Mengikuti filter aktif, dibuka inline di tab baru |
+| GET | `/customers/export/pdf` | Ekspor PDF daftar pelanggan. Query: `search`, `status`. Ikut filter aktif (scope `Customer::filtered`), inline tab baru |
+| GET | `/customers/export/excel` | Ekspor Excel (.xlsx) daftar pelanggan. Query sama dgn PDF; unduh file |
 
 ---
 
@@ -249,8 +284,8 @@ tests/
 **Tugas Teknisi**
 | Method | Path | Auth | Keterangan |
 |---|---|---|---|
-| GET | `/api/tasks` | token | Daftar tugas milik teknisi yang login |
-| GET | `/api/tasks/{id}` | token | Detail tugas + info pelanggan + riwayat status |
+| GET | `/api/tasks` | token | Daftar tugas milik teknisi yang login. Tiap item: `category` + `headline` + kontak pelanggan (`phone`/`ip_address`/`subscription_package`, null untuk non-pelanggan) |
+| GET | `/api/tasks/{id}` | token | Detail tugas + riwayat status + `house_photos` (URL foto rumah; `[]` non-pelanggan). Kontrak lengkap di `CLAUDE_ANDROID.md` |
 | POST | `/api/tasks/{id}/status` | token | Update status: `in_progress` atau `done` |
 
 **GPS Tracking**
@@ -280,6 +315,15 @@ tests/
   & edit laporan; `GetActiveTechnicianLocations` — lokasi GPS teknisi aktif, dipakai bersama
   monitoring & dashboard), bukan ditanam di dalam method Volt component
 - API untuk Android menggunakan prefix `/api` dengan auth `sanctum`
+- **Laporan punya kategori** (`ReportCategory`): kategori `pelanggan` wajib `customer_id` (pilih
+  pelanggan terdaftar lewat `x-choices-offline`; `customer_name`/`address` disimpan sebagai
+  **snapshot** saat simpan), kategori `jaringan`/`pemeliharaan` pakai `title` + `address` (lokasi),
+  `customer_id`/`customer_name` NULL. Validasi bersyarat lewat `ReportCategory::butuhPelanggan()`.
+  Tampilan headline mana pun kategorinya pakai accessor `$report->judul` (`customer_name ?? title`).
+  Hapus pelanggan TIDAK menghapus laporan (FK `nullOnDelete`) — snapshot tetap utuh
+- **Foto rumah pelanggan** disimpan di disk `public` (`storage:link` wajib aktif); upload/hapus di
+  detail pelanggan (Fase 1 web). Skema `customer_photos.uploaded_by` sudah siap untuk upload dari
+  Android (Fase 2) tanpa ubah tabel
 - Role middleware ada di `app/Http/Middleware/RoleMiddleware.php`
 - Gunakan `composer dev` untuk menjalankan semua service, bukan `php artisan serve` saja
 - `SESSION_DRIVER=file` (bukan database — tabel sessions tidak dibuat)
@@ -431,25 +475,31 @@ new #[Layout('layouts.app')] class extends Component {
   `tableComputed()` (nama #[Computed] tabel, mis. `return 'reports';`). Konvensi nama filter
   (`search` + prefix `filter`) sudah seragam — patuhi saat menambah filter baru
 
-### Ekspor PDF (barryvdh/laravel-dompdf)
+### Ekspor PDF (barryvdh/laravel-dompdf) & Excel (maatwebsite/excel)
 
-Halaman Riwayat bisa diekspor ke PDF (laporan cetak ber-kop). Pola wajib saat menambah ekspor:
+Halaman Riwayat (PDF) & Pelanggan (PDF + Excel) bisa diekspor. Pola wajib saat menambah ekspor:
 
-- Endpoint = **controller biasa** (`ReportExportController@riwayat`, route `history/export` di
-  grup `['auth']`), BUKAN Volt — Volt tidak cocok untuk response file.
+- Endpoint = **controller biasa** (`ReportExportController@riwayat` route `history/export`;
+  `CustomerExportController@pdf|@excel` route `customers/export/{pdf,excel}` — semua di grup
+  `['auth']`), BUKAN Volt — Volt tidak cocok untuk response file.
 - Template di `resources/views/pdf/`: `layout.blade.php` (kop teks + footer nomor halaman via
-  `counter(page)/counter(pages)`), `riwayat-ringkasan.blade.php` (A4 landscape, 1 baris/laporan),
-  `riwayat-lengkap.blade.php` (A4 portrait, per-laporan + timeline work logs, `page-break-inside: avoid`).
+  `counter(page)/counter(pages)`; blok meta filter = `@yield('meta')` → **tiap template wajib isi
+  `@section('meta')` sendiri**), `riwayat-ringkasan.blade.php` (A4 landscape), `riwayat-lengkap.blade.php`
+  (A4 portrait + timeline work logs, `page-break-inside: avoid`), `pelanggan.blade.php` (A4 landscape).
 - dompdf **tidak membaca Tailwind/asset Vite** → semua CSS ditulis **inline** di `<style>` template.
   Pakai font `DejaVu Sans` (bawaan dompdf; aman untuk karakter Indonesia & en/em dash `– —`).
 - Set `\Carbon\Carbon::setLocale('id')` di controller sebelum `translatedFormat(...)` supaya nama
   bulan/hari berbahasa Indonesia — locale app default `en`.
 - `$pdf->stream(...)` = tampil inline di tab baru (tombol pakai `target="_blank"`); pakai
   `download()` bila ingin paksa unduh.
-- Filter dipusatkan di scope `DamageReport::scopeRiwayatSelesai($search, $period)` agar halaman Volt
-  (`riwayat.blade.php`) & controller ekspor memakai query yang sama (sumber kebenaran tunggal).
+- **Excel** = class di `app/Exports/` (mis. `CustomersExport`) implement `FromQuery` + `WithHeadings`
+  + `WithMapping` (+`ShouldAutoSize`), dikembalikan via `Excel::download(new ..., 'nama.xlsx')`. Butuh
+  ext `zip`/`gd` (ada di Laragon). Test pakai `Excel::fake()` + `Excel::assertDownloaded(...)`.
+- Filter **dipusatkan di satu scope** agar halaman Volt + PDF + Excel memakai query identik (sumber
+  kebenaran tunggal): `DamageReport::scopeRiwayatSelesai($search,$period)` (riwayat),
+  `Customer::scopeFiltered($search,$status)` (pelanggan).
 - Tombol pakai `<x-dropdown>` (BUKAN `x-mary-dropdown` — `dropdown` tak ada di daftar hardcoded
-  `mary-*`); mode Lengkap memunculkan `confirm()` JS bila hasil > 30 laporan.
+  `mary-*`); mode Lengkap riwayat memunculkan `confirm()` JS bila hasil > 30 laporan.
 
 ### Status Mapping API Android ↔ Database
 

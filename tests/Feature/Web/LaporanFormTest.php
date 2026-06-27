@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Web;
 
+use App\Enums\ReportCategory;
+use App\Models\Customer;
 use App\Models\DamageReport;
 use App\Models\DamageType;
 use App\Models\TaskAssignment;
@@ -12,30 +14,36 @@ use Tests\TestCase;
 
 /**
  * Integrasi form laporan (Volt): memastikan save() menyimpan laporan dan
- * benar-benar memanggil SyncReportTechnicians (penugasan + notifikasi).
+ * benar-benar memanggil SyncReportTechnicians (penugasan + notifikasi), serta
+ * validasi bersyarat per kategori (pelanggan vs jaringan/pemeliharaan).
  */
 class LaporanFormTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_membuat_laporan_menugaskan_teknisi_dan_notifikasi(): void
+    public function test_membuat_laporan_pelanggan_snapshot_dan_menugaskan_teknisi(): void
     {
         $admin = User::factory()->admin()->create();
         $type  = DamageType::factory()->create();
         $tech  = User::factory()->teknisi()->create();
+        $customer = Customer::factory()->create(['name' => 'Budi', 'address' => 'Jl. Mawar No. 1']);
 
         $this->actingAs($admin);
 
         Volt::test('pages.laporan.index')
-            ->set('customer_name', 'Budi')
-            ->set('address', 'Jl. Mawar No. 1')
+            ->set('customer_id', $customer->id) // kategori default = pelanggan (dari mount)
             ->set('damage_type_id', $type->id)
             ->set('selectedTechnicians', [$tech->id])
             ->call('save')
             ->assertHasNoErrors();
 
+        // Snapshot nama/alamat diambil dari pelanggan terpilih.
         $this->assertDatabaseHas('damage_reports', [
+            'category'      => ReportCategory::Pelanggan->value,
+            'customer_id'   => $customer->id,
             'customer_name' => 'Budi',
+            'address'       => 'Jl. Mawar No. 1',
+            'title'         => null,
             'status'        => 'ditugaskan',
             'created_by'    => $admin->id,
         ]);
@@ -46,16 +54,55 @@ class LaporanFormTest extends TestCase
         ]);
     }
 
-    public function test_validasi_menolak_input_kosong(): void
+    public function test_membuat_laporan_jaringan_tanpa_pelanggan(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $type  = DamageType::factory()->create();
+        $this->actingAs($admin);
+
+        Volt::test('pages.laporan.index')
+            ->set('category', ReportCategory::Jaringan->value)
+            ->set('title', 'Kabel utama putus area Cibitung')
+            ->set('address', 'Backbone RT 03, Cibitung')
+            ->set('damage_type_id', $type->id)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('damage_reports', [
+            'category'      => ReportCategory::Jaringan->value,
+            'customer_id'   => null,
+            'customer_name' => null,
+            'title'         => 'Kabel utama putus area Cibitung',
+            'address'       => 'Backbone RT 03, Cibitung',
+        ]);
+    }
+
+    public function test_validasi_pelanggan_butuh_customer_id(): void
     {
         $this->actingAs(User::factory()->admin()->create());
 
+        // Kategori default pelanggan → customer_id wajib; damage_type wajib.
         Volt::test('pages.laporan.index')
             ->call('save')
-            ->assertHasErrors(['customer_name', 'address', 'damage_type_id']);
+            ->assertHasErrors(['customer_id', 'damage_type_id']);
 
         $this->assertSame(0, DamageReport::count());
         $this->assertSame(0, TaskAssignment::count());
+    }
+
+    public function test_validasi_jaringan_butuh_judul_dan_lokasi(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $type  = DamageType::factory()->create();
+        $this->actingAs($admin);
+
+        Volt::test('pages.laporan.index')
+            ->set('category', ReportCategory::Jaringan->value)
+            ->set('damage_type_id', $type->id)
+            ->call('save')
+            ->assertHasErrors(['title', 'address']);
+
+        $this->assertSame(0, DamageReport::count());
     }
 
     /**
@@ -67,13 +114,13 @@ class LaporanFormTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $type  = DamageType::factory()->create();
+        $customer = Customer::factory()->create();
 
         $this->actingAs($admin);
 
         try {
             Volt::test('pages.laporan.index')
-                ->set('customer_name', 'Atomik')
-                ->set('address', 'Jl. Uji No. 9')
+                ->set('customer_id', $customer->id)
                 ->set('damage_type_id', $type->id)
                 ->set('selectedTechnicians', [999999]) // teknisi tidak ada → FK gagal
                 ->call('save');
@@ -97,12 +144,12 @@ class LaporanFormTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $type  = DamageType::factory()->create();
+        $customer = Customer::factory()->create();
 
         $this->actingAs($admin);
 
         Volt::test('pages.laporan.index')
-            ->set('customer_name', 'Citra')
-            ->set('address', 'Jl. Anggrek No. 2')
+            ->set('customer_id', $customer->id)
             ->set('damage_type_id', $type->id)
             ->set('selectedTechnicians', [$admin->id, 999999]) // admin + ID tak ada
             ->call('save')
@@ -121,6 +168,6 @@ class LaporanFormTest extends TestCase
         Volt::test('pages.laporan.index')
             ->call('confirmDelete', $report->id)
             ->assertSet('showDeleteModal', true)
-            ->assertSet('deletingName', 'Pak Sigit'); // nama dipersiapkan saat buka modal
+            ->assertSet('deletingName', 'Pak Sigit'); // judul (customer_name ?? title)
     }
 }

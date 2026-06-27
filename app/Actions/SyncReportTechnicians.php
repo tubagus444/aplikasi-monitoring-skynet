@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Enums\ReportCategory;
 use App\Models\DamageReport;
 use App\Models\Notification;
 use App\Models\TaskAssignment;
@@ -37,6 +38,12 @@ class SyncReportTechnicians
                 ->delete();
         }
 
+        // Pesan notifikasi sadar kategori: laporan pelanggan menyebut nama pelanggan;
+        // laporan jaringan/pemeliharaan (tanpa pelanggan) memakai judul laporan.
+        $body = $report->category === ReportCategory::Pelanggan->value
+            ? "Anda ditugaskan untuk menangani gangguan di {$report->address} atas nama pelanggan {$report->customer_name}."
+            : "Anda ditugaskan untuk menangani \"{$report->judul}\" di {$report->address}.";
+
         foreach ($toAdd as $technicianId) {
             TaskAssignment::create([
                 'report_id'     => $report->id,
@@ -46,7 +53,7 @@ class SyncReportTechnicians
             Notification::create([
                 'user_id' => $technicianId,
                 'title'   => 'Tugas Baru Ditugaskan',
-                'body'    => "Anda ditugaskan untuk menangani laporan gangguan di {$report->address} atas nama pelanggan {$report->customer_name}.",
+                'body'    => $body,
             ]);
         }
     }
