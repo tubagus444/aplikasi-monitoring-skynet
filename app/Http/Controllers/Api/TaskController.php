@@ -41,6 +41,9 @@ class TaskController extends Controller
     {
         $request->validate([
             'status' => 'required|in:' . implode(',', ReportStatus::apiActions()),
+            // Catatan pekerjaan teknisi (opsional) — narasi "apa yang dikerjakan",
+            // tersimpan di work log transisi ini & tampil di timeline riwayat/API detail.
+            'description' => 'nullable|string|max:1000',
         ]);
 
         $assignment = TaskAssignment::where('technician_id', $request->user()->id)
@@ -83,10 +86,15 @@ class TaskController extends Controller
 
             $report->update($updates);
 
+            // Catatan menempel pada work log transisi yang baru dibuat. Pada jalur
+            // idempotent di atas (status sudah sesuai) tidak ada work log dibuat,
+            // jadi catatan memang sengaja tidak tersimpan — tak ada transisi untuk
+            // dilekati.
             WorkLog::create([
                 'report_id'     => $report->id,
                 'technician_id' => $request->user()->id,
                 'status'        => $transition['to']->value,
+                'description'   => $request->input('description'),
             ]);
 
             return response()->json([

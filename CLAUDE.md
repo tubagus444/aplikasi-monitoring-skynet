@@ -195,7 +195,8 @@ tests/
                         # PelangganDetailTest (render + upload/hapus foto + ringkasan stats),
                         # PelangganExportTest (ekspor PDF/Excel ikut scope filtered),
                         # RiwayatCategoryTest (judul/kategori di Riwayat + ekspor PDF non-pelanggan)
-                        # (84 test cases, semua pass — 30 API + 54 Web)
+                        # TaskTest juga menguji catatan pekerjaan (description) tersimpan & tampil di detail
+                        # (87 test cases, semua pass — 33 API + 54 Web)
 ```
 
 ## Routes & Endpoint
@@ -286,7 +287,7 @@ tests/
 |---|---|---|---|
 | GET | `/api/tasks` | token | Daftar tugas milik teknisi yang login. Tiap item: `category` + `headline` + kontak pelanggan (`phone`/`ip_address`/`subscription_package`, null untuk non-pelanggan) |
 | GET | `/api/tasks/{id}` | token | Detail tugas + riwayat status + `house_photos` (URL foto rumah; `[]` non-pelanggan). Kontrak lengkap di `CLAUDE_ANDROID.md` |
-| POST | `/api/tasks/{id}/status` | token | Update status: `in_progress` atau `done` |
+| POST | `/api/tasks/{id}/status` | token | Update status: `in_progress` atau `done`. Opsional `description` (catatan pekerjaan, `max:1000`) → disimpan di work log transisi, tampil di timeline Riwayat & API detail |
 
 **GPS Tracking**
 | Method | Path | Auth | Keterangan |

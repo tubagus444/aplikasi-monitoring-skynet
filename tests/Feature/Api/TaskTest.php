@@ -174,6 +174,63 @@ class TaskTest extends TestCase
         ]);
     }
 
+    public function test_catatan_pekerjaan_tersimpan_di_work_log(): void
+    {
+        $teknisi    = User::factory()->teknisi()->create();
+        $report     = DamageReport::factory()->sedangDiperbaiki()->create();
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $this->actingAs($teknisi, 'sanctum')
+            ->postJson("/api/tasks/{$assignment->id}/status", [
+                'status'      => 'done',
+                'description' => 'Ganti konektor RJ45 dan rapikan kabel di ODP.',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('work_logs', [
+            'report_id'     => $report->id,
+            'technician_id' => $teknisi->id,
+            'status'        => 'selesai',
+            'description'   => 'Ganti konektor RJ45 dan rapikan kabel di ODP.',
+        ]);
+    }
+
+    public function test_catatan_pekerjaan_opsional_boleh_kosong(): void
+    {
+        $teknisi    = User::factory()->teknisi()->create();
+        $report     = DamageReport::factory()->create(['status' => 'ditugaskan']);
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        // Tanpa field description sama sekali → tetap sukses, description NULL.
+        $this->actingAs($teknisi, 'sanctum')
+            ->postJson("/api/tasks/{$assignment->id}/status", ['status' => 'in_progress'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('work_logs', [
+            'report_id'   => $report->id,
+            'status'      => 'sedang_memperbaiki',
+            'description' => null,
+        ]);
+    }
+
+    public function test_catatan_pekerjaan_muncul_di_detail_tugas(): void
+    {
+        $teknisi    = User::factory()->teknisi()->create();
+        $report     = DamageReport::factory()->sedangDiperbaiki()->create();
+        $assignment = TaskAssignment::create(['report_id' => $report->id, 'technician_id' => $teknisi->id]);
+
+        $this->actingAs($teknisi, 'sanctum')
+            ->postJson("/api/tasks/{$assignment->id}/status", [
+                'status'      => 'done',
+                'description' => 'Modem direset dan firmware diperbarui.',
+            ])->assertOk();
+
+        $this->actingAs($teknisi, 'sanctum')
+            ->getJson("/api/tasks/{$assignment->id}")
+            ->assertOk()
+            ->assertJsonPath('data.work_logs.0.description', 'Modem direset dan firmware diperbarui.');
+    }
+
     public function test_teknisi_kedua_mulai_saat_laporan_sudah_diperbaiki_bersifat_idempotent(): void
     {
         // Status milik bersama: teknisi A sudah memulai (laporan sedang_memperbaiki),

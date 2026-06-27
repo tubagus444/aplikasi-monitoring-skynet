@@ -147,11 +147,19 @@ GET /api/tasks/{id}
 ### Update Status Tugas
 ```
 POST /api/tasks/{id}/status
-Body: { "status": "in_progress" }    // atau "done"
+Body: { "status": "in_progress" }                               // atau "done"
+Body: { "status": "done", "description": "Ganti konektor RJ45" } // + catatan pekerjaan (opsional)
 
 200: { "message": "Status diperbarui", "status": "sedang_memperbaiki" }
 422: { "message": "Perubahan status tidak valid dari status saat ini" }
 ```
+
+- **`description`** (opsional, `max:1000`): catatan/narasi pekerjaan teknisi untuk transisi ini.
+  Tersimpan di work log transisi → muncul kembali di `work_logs[].description` pada endpoint detail
+  & di timeline Riwayat web admin. Field lama yang sudah ada (dulu selalu `null`) — kini bisa diisi.
+  Paling relevan dikirim bersama `"done"` (rangkuman apa yang dikerjakan), tapi boleh di `in_progress`
+  juga. Jika dikirim pada request **idempotent** (status sudah sesuai, tak ada transisi), catatan
+  **tidak tersimpan** karena tak ada work log baru untuk dilekati.
 
 > **Status Mapping (hidden contract):**
 >
