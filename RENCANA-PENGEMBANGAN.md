@@ -448,7 +448,17 @@ perluasan ini diizinkan / perlu penyesuaian framing/judul — sebelum dieksekusi
 - **`customers`** tambah jejak pembuat (mis. `submitted_by` FK → users, `nullOnDelete`) untuk tahu
   teknisi mana yang mendaftarkan.
 - **API Android** 📱: endpoint baru `POST /api/customers` (teknisi kirim data pelanggan +
-  koordinat + foto rumah). Reuse endpoint foto rumah Fase 2 (`POST /api/customers/{id}/photos`).
+  koordinat + foto rumah).
+  > **⚠️ Pergeseran endpoint (update 2026-06-27):** asumsi awal "reuse `POST /api/customers/{id}/photos`"
+  > **tidak berlaku lagi**. Saat Fase 2 dieksekusi, endpoint upload foto rumah dibuat
+  > **task-scoped** (`POST /api/tasks/{id}/house-photos`) demi otorisasi alami — teknisi hanya
+  > boleh menambah foto untuk laporan yang ditugaskan padanya. Pada #4, pelanggan **baru** belum
+  > punya task → endpoint task-scoped itu **tak bisa dipakai**. Jadi #4 harus menyediakan jalur
+  > fotonya sendiri: entah (a) `POST /api/customers` sekalian terima foto multipart, atau (b)
+  > endpoint customer-scoped terpisah (`POST /api/customers/{id}/photos`) yang dibuat khusus di #4
+  > dengan cek otorisasi sendiri (mis. `submitted_by` = teknisi pengirim). Bukan blocker — hanya
+  > berarti "reuse penuh" jadi "jalur baru". Fase 2 yang sudah ada melayani kasus **perbaikan**
+  > (lihat Arsip #1); #4 menambah jalur untuk kasus **pemasangan/pendaftaran**.
 - **Web admin:** di halaman Pelanggan, chip filter "Menunggu Verifikasi" + aksi Setujui/Tolak di
   detail pelanggan.
 - Bila ambil opsi job termonitor: kategori `pemasangan` + alur task assignment seperti perbaikan.
@@ -487,10 +497,14 @@ pass**. Yang terbangun:
 - **Ekspor pelanggan:** PDF (dompdf) + **Excel** (`maatwebsite/excel`), ikut filter via scope
   tunggal `Customer::filtered`.
 
-**Tersisa (di luar cakupan inti, dipindah ke backlog):**
-- **Fase 2 — upload foto rumah dari Android:** endpoint `POST /api/customers/{id}/photos` (skema
-  `customer_photos.uploaded_by` sudah siap; tinggal tambah endpoint, tanpa ubah tabel). 📱
-- Ini juga jadi prasyarat **Rencana #4** (pendaftaran pelanggan oleh teknisi).
+**Fase 2 — upload foto rumah dari Android — ✅ SELESAI backend (2026-06-27):**
+- Dibuat sebagai **`POST /api/tasks/{id}/house-photos`** (task-scoped, BUKAN `/customers/{id}/photos`
+  mentah — otorisasi alami: teknisi hanya boleh menambah foto untuk laporan yang ditugaskan padanya;
+  hanya kategori pelanggan, non-pelanggan → 422). Multipart `photo`+`caption` → `customer_photos`,
+  `uploaded_by` dari token. Dikerjakan satu paket dengan foto bukti pekerjaan (Rencana #2).
+- **Sisa = UI Android** (tombol kamera kirim ke endpoint itu). Kontrak di `CLAUDE_ANDROID.md`.
+- **Catatan untuk Rencana #4:** endpoint task-scoped ini **tidak** otomatis melayani pendaftaran
+  pelanggan baru #4 (pelanggan baru belum punya task) — lihat pergeseran endpoint di [bagian #4](#4-pendaftaran-pelanggan-oleh-teknisi-saat-pemasangan-baru).
 
 > Detail desain & keputusan lengkap tetap tersimpan di [bagian #1 di atas](#1-modul-pelanggan-customers)
 > sebagai catatan historis.
