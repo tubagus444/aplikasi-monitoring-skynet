@@ -60,7 +60,7 @@ DB_PASSWORD=
 | `users` | Admin dan teknisi |
 | `customers` | Pelanggan (entitas tersendiri); laporan kategori "pelanggan" menunjuk ke sini via FK |
 | `customer_photos` | Foto rumah pelanggan (wayfinding); path file di disk `public`, append-only |
-| `damage_types` | Jenis kerusakan jaringan |
+| `damage_types` | Jenis gangguan/pekerjaan (master data, CRUD admin); dirujuk `damage_reports.damage_type_id` (nullable, `nullOnDelete`) |
 | `damage_reports` | Laporan kerusakan dari admin (punya `category` + `customer_id` nullable + `title`) |
 | `report_photos` | Foto bukti pekerjaan teknisi (sebelum/sesudah); path di disk `public`, append-only; diunggah dari Android |
 | `task_assignments` | Penugasan teknisi ke laporan |
@@ -102,6 +102,7 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 5. Pengguna — full CRUD admin & teknisi
 6. Pelanggan — full CRUD + filter status + search + **detail** (galeri foto rumah + ringkasan + riwayat perbaikan per pelanggan) + **ekspor PDF & Excel**
 7. Statistik — analitik read-only: pecahan laporan per kategori, rata-rata durasi penanganan, **tren komplain 12 bulan (Chart.js)**, kinerja per teknisi, kerusakan tersering (top 5)
+8. Jenis Gangguan — full CRUD master data jenis gangguan/pekerjaan (`damage_types`) + search + kolom "Dipakai" (jumlah laporan). Hapus jenis = `nullOnDelete` (laporan utuh, kolomnya jadi NULL/"—")
 
 ### Layar Android Teknisi (direncanakan 6 layar)
 
@@ -148,7 +149,11 @@ app/
                         # FK ke users: created_by (DamageReport) & technician_id (WorkLog)
                         # = nullOnDelete → hapus pengguna TIDAK menghapus riwayat; kolomnya
                         # jadi NULL (tampil "—"/"Teknisi dihapus"). task_assignments &
-                        # location_logs sengaja TETAP cascade (penanda live, bukan arsip)
+                        # location_logs sengaja TETAP cascade (penanda live, bukan arsip).
+                        # FK damage_type_id JUGA nullOnDelete + NULLABLE: hapus jenis gangguan
+                        # tak menghapus laporan (kolom jadi NULL → "—"); wajib hanya utk kategori
+                        # pelanggan (lihat ReportCategory::butuhJenisGangguan). Pakai
+                        # $report->damageType?->name ?? '—' (selalu null-safe)
   Enums/
     ReportStatus.php    # Sumber kebenaran status laporan (dipakai PHP & query, hindari literal).
                         # Juga memegang tabel transisi API Android: apiTransitions() (peta
@@ -161,12 +166,15 @@ app/
     CustomerStatus.php  # Sumber kebenaran status langganan (aktif/isolir/berhenti); pola sama
                         # dgn UserRole (tidak di-cast, options()/values())
     ReportCategory.php  # Sumber kebenaran kategori laporan (pelanggan/jaringan/pemeliharaan);
-                        # butuhPelanggan() = apakah kategori wajib customer_id (validasi form)
+                        # butuhPelanggan() = apakah kategori wajib customer_id (validasi form);
+                        # butuhJenisGangguan() = apakah wajib damage_type_id (true hanya pelanggan;
+                        # jaringan/pemeliharaan opsional — pemeliharaan kerap bukan "kerusakan")
   Observers/
     NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
   web.php               # Volt routes (admin panel) + history/export + customers/export/{pdf,excel}
-                        # + statistik + redirect `/`. Route ekspor pelanggan didaftar SEBELUM customers/{customer}
+                        # + statistik + damage-types (CRUD jenis gangguan) + redirect `/`.
+                        # Route ekspor pelanggan didaftar SEBELUM customers/{customer}
   api.php               # 11 API endpoints (Android via Sanctum); /auth/login throttle:5,1
                         # + tasks/{id}/photos (bukti pekerjaan) & tasks/{id}/house-photos
                         # (foto rumah, Fase 2) — multipart, di-scope kepemilikan tugas
@@ -178,9 +186,11 @@ resources/views/livewire/pages/
   statistik.blade.php        # analitik read-only: pecahan kategori + rata-rata durasi + tren bulanan
                              # (Chart.js via @script, canvas di wire:ignore) + kinerja teknisi + top kerusakan
   pengguna/index.blade.php
+  jenis-gangguan/index.blade.php # CRUD master data jenis gangguan/pekerjaan (damage_types)
+                             # + search + kolom "Dipakai"; modal hapus jelaskan dampak nullOnDelete
   pelanggan/index.blade.php  # CRUD pelanggan + filter status + search + ekspor PDF/Excel
   pelanggan/detail.blade.php # galeri foto rumah (upload/hapus) + ringkasan + riwayat perbaikan
-resources/views/components/ # Komponen Blade reusable panel admin: status-pill,
+resources/views/components/ # Komponen Blade reusable panel admin: status-pill, category-pill,
                         # table-card, filter-chips, confirm-delete-modal (lihat "Bahasa Visual")
 resources/views/pdf/    # Template dompdf: layout (kop + footer + @yield('meta')),
                         # riwayat-ringkasan, riwayat-lengkap, pelanggan
@@ -196,7 +206,9 @@ tests/
   Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
   Feature/Web/          # PageRenderTest (smoke halaman admin), StatusPillTest,
                         # SyncReportTechniciansTest,
-                        # LaporanFormTest (integrasi save + atomicity rollback + validasi teknisi + nama hapus),
+                        # LaporanFormTest (integrasi save + atomicity rollback + validasi teknisi + nama hapus
+                        # + jenis gangguan opsional non-pelanggan / wajib pelanggan),
+                        # JenisGangguanCrudTest (CRUD jenis gangguan + nama unik + hapus→laporan utuh/kolom NULL),
                         # FilterScopingTest (regresi search+filter status/role tidak bocor),
                         # GetActiveTechnicianLocationsTest (lokasi teknisi aktif, anti N+1),
                         # CompletedAtTest (completed_at + durasiPenanganan terpusat + modal),
@@ -213,7 +225,7 @@ tests/
                         # TaskTest juga menguji catatan pekerjaan (description) tersimpan & tampil di detail
                         # TaskPhotoTest (Api): unggah foto bukti & rumah — 201/validasi gambar/
                         # scope kepemilikan (404)/house-photos non-pelanggan ditolak (422)/repair_photos di detail
-                        # (100 test cases, semua pass — 39 API + 61 Web)
+                        # (107 test cases, semua pass — 39 API + 68 Web)
 ```
 
 ## Routes & Endpoint
@@ -280,6 +292,11 @@ tests/
 |---|---|---|
 | GET | `/customers` | Daftar pelanggan + filter status + search (aksi CRUD = Livewire action) |
 | GET | `/customers/{customer}` | Detail pelanggan: galeri foto rumah (upload/hapus) + ringkasan + riwayat perbaikan |
+
+**Jenis Gangguan (master data)**
+| Method | Path | Keterangan |
+|---|---|---|
+| GET | `/damage-types` | Daftar jenis gangguan/pekerjaan + search (aksi CRUD = Livewire action). Hapus = `nullOnDelete` |
 
 **Ekspor** _(route HTTP riil)_
 | Method | Path | Keterangan |
@@ -444,6 +461,10 @@ Semua halaman admin memakai konvensi tampilan seragam — ikuti saat membuat kom
   (+ atribut `pulse` untuk titik berdenyut) — pakai itu, jangan menyalin `match()`. Pola dot+pill
   manual di atas tetap untuk indikator lain (role, hitungan) atau label kontekstual (mis. timeline
   work-log di riwayat yang memakai "Mulai Memperbaiki").
+  **Kategori laporan juga punya komponen**: `<x-category-pill :category="$report->category" />`
+  (pelanggan=primary, jaringan=info, pemeliharaan=secondary; label ringkas). Dipakai di kolom
+  "Laporan" tabel Laporan & Riwayat — headline (`judul`) bisa nama pelanggan ATAU judul pekerjaan,
+  pil ini yang menegaskan jenisnya (jadi kolom TIDAK lagi berjudul "Pelanggan" yang menyesatkan).
 - Wrapper tabel selalu `overflow-x-auto no-scrollbar`.
 - **Kerangka tabel punya komponen siap pakai**: `<x-table-card :rows="$this->reports"
   empty-icon="o-document-text" empty-text="...">` membungkus card `rounded-2xl` + empty-state +

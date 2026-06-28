@@ -198,7 +198,7 @@ class TaskController extends Controller
             'headline'     => $report->judul,
             'customer'     => $report->customer_name,
             'address'      => $report->address,
-            'damage_type'  => $report->damageType->name,
+            'damage_type'  => $report->damageType?->name,
             'notes'        => $report->notes,
             'assigned_at'  => $assignment->assigned_at?->toIso8601String(),
             // Kontak & info teknis pelanggan — null untuk laporan non-pelanggan.

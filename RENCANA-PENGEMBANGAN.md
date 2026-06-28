@@ -26,13 +26,14 @@
 2. [Catatan & bukti pekerjaan teknisi](#2-catatan--bukti-pekerjaan-teknisi) 📋 📱
 3. [Dashboard analitik & filter laporan](#3-dashboard-analitik--filter-laporan) ✅ — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 4. [Pendaftaran pelanggan oleh teknisi saat pemasangan baru](#4-pendaftaran-pelanggan-oleh-teknisi-saat-pemasangan-baru) 💡 📱
-5. [CRUD Jenis Kerusakan (damage_types)](#5-crud-jenis-kerusakan-damage_types) 📋
+5. [CRUD Jenis Kerusakan (damage_types)](#5-crud-jenis-kerusakan-damage_types) ✅ — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 6. [Metadata laporan: asal komplain & jadwal kunjungan](#6-metadata-laporan-asal-komplain--jadwal-kunjungan) 📋
 
 > **Urutan eksekusi yang disarankan:** ~~#1~~ ✅ → #2 → ~~#3~~ ✅ → #4 (terakhir, menunggu dosen).
 > **#1 SUDAH SELESAI** (lihat Arsip) — fondasi `customers`/`ReportCategory` yang dirujuk #3 & #4
 > kini tersedia, jadi **#3a** (filter/pecahan per kategori) & **#4** tak lagi terblokir olehnya.
-> **#5** mandiri — bisa dikerjakan kapan saja (cocok jadi pemanasan). **#6** dulu diharapkan
+> **~~#5~~ ✅ SUDAH SELESAI** (2026-06-28, lihat Arsip) — CRUD jenis gangguan + jadikan
+> `damage_type_id` nullable/`nullOnDelete` (opsional untuk non-pelanggan). **#6** dulu diharapkan
 > membonceng migrasi `damage_reports` di #1; karena #1 sudah rampung, #6 kini butuh **migrasi
 > sendiri** (kolom `report_source`/`reported_at`/`scheduled_at`).
 
@@ -474,6 +475,29 @@ perluasan ini diizinkan / perlu penyesuaian framing/judul — sebelum dieksekusi
 ---
 
 ## Arsip (rencana yang sudah selesai)
+
+### ✅ 5. CRUD Jenis Kerusakan (damage_types) — selesai 2026-06-28
+
+Jenis gangguan kini **data master yang dikelola admin** (bukan hanya seeder) + perbaikan semantik
+model data. **107 test pass.** Yang terbangun:
+
+- **Menu "Jenis Gangguan"** (`pages/jenis-gangguan/index.blade.php`, route `damage-types.index`):
+  full CRUD + search + nama unik + kolom "Dipakai" (jumlah laporan). Pakai komponen seragam
+  (`x-table-card`, trait `WithTableFilters`). Seeder diperkaya 5 → 11 jenis. Tabel `damage_types`
+  dapat `updated_at` (migrasi `add_updated_at_to_damage_types`) & `DamageType` kini `timestamps`
+  aktif — jejak waktu ubah tercatat (menutup catatan backlog `CATATAN-FITUR.md`).
+- **Perbaikan FK (yang penting):** `damage_reports.damage_type_id` dijadikan **nullable** + FK
+  `cascadeOnDelete` → **`nullOnDelete`** (migrasi `2026_06_28_000000_make_damage_type_optional...`).
+  Semula hapus satu jenis akan **ikut menghapus laporan/riwayat** yang memakainya — kini laporan
+  utuh, kolomnya jadi NULL (tampil "—"). Selaras prinsip "hapus data master tak menghapus arsip".
+- **Jenis gangguan jadi opsional untuk non-pelanggan:** `ReportCategory::butuhJenisGangguan()`
+  (true hanya `pelanggan`). Pemeliharaan/jaringan boleh tanpa jenis (pemeliharaan kerap bukan
+  "kerusakan"). Label form/tabel diganti **"Jenis Gangguan/Pekerjaan"**. Semua pemakaian
+  `damageType->name` dibuat null-safe (`?->name ?? '—'`).
+- **Bonus presentasi kategori (menyambung #1 #9 & #3a):** kolom "Pelanggan" di tabel **Laporan &
+  Riwayat** menyesatkan (judulnya "Pelanggan" tapi berisi `judul` = nama pelanggan ATAU judul
+  pekerjaan). Header diganti **"Laporan"** + komponen baru **`<x-category-pill>`** (pelanggan=primary,
+  jaringan=info, pemeliharaan=secondary) di tiap baris — jenis laporan kini tegas tanpa ambiguitas.
 
 ### ✅ 3. Dashboard analitik & filter laporan — selesai 2026-06-28
 

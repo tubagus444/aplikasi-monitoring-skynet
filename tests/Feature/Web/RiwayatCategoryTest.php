@@ -31,9 +31,10 @@ class RiwayatCategoryTest extends TestCase
 
         $this->get('/history')
             ->assertOk()
-            ->assertSee('Pak Hendra')                          // judul = customer_name (pelanggan)
-            ->assertSee('Kabel Utama Putus')                   // judul = title (non-pelanggan)
-            ->assertSee('Gangguan Jaringan/Infrastruktur');    // label kategori non-pelanggan
+            ->assertSee('Pak Hendra')        // judul = customer_name (pelanggan)
+            ->assertSee('Kabel Utama Putus') // judul = title (non-pelanggan)
+            ->assertSee('Pelanggan')         // pil kategori (<x-category-pill>) baris pelanggan
+            ->assertSee('Jaringan');         // pil kategori baris non-pelanggan
     }
 
     public function test_ekspor_pdf_ringkasan_dengan_laporan_non_pelanggan(): void

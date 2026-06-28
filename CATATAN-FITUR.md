@@ -350,13 +350,16 @@ Temuan minor dari review kesiapan sidang — sebagian **bukan perubahan**, melai
   ([migrasi notifications](database/migrations/2026_06_05_145737_create_notifications_table.php)). Tap
   notifikasi di Android tak bisa *deep-link* ke tugas terkait. Tambah kolom `report_id` (nullable) +
   `type` bila ingin navigasi langsung.
-- **`damage_types` tanpa `updated_at`** — admin bisa mengedit `description` jenis kerusakan tapi tak
-  ada jejak waktu ubah. Inkonsistensi kecil; tambah `timestamps()` bila mau seragam.
+- ~~**`damage_types` tanpa `updated_at`**~~ ✅ **RESOLVED (2026-06-28)** — bersamaan dengan menu CRUD
+  Jenis Gangguan (Rencana #5), kolom `updated_at` ditambahkan (migrasi `add_updated_at_to_damage_types`,
+  nullable) & `DamageType` kini `timestamps` aktif (hapus `$timestamps = false`). Jejak waktu ubah
+  tercatat saat admin mengedit jenis.
 - **`fcm_token` tunggal per user** — login di 2 perangkat → token lama tertimpa, hanya perangkat
   terakhir yang menerima push. Acceptable untuk pola "1 teknisi 1 HP"; catat saja sebagai batasan.
 - **`enum` vs tabel referensi (status/role)** — bukan perubahan, tapi **siapkan jawaban**: jenis
-  kerusakan = data yang dikelola admin (tabel CRUD), sedangkan status/role = aturan bisnis yang tetap
-  (enum). Menambah nilai enum perlu migration `ALTER` — konsekuensi yang disengaja.
+  gangguan = data yang dikelola admin (**tabel CRUD — kini benar-benar ada**, Rencana #5), sedangkan
+  status/role = aturan bisnis yang tetap (enum). Menambah nilai enum perlu migration `ALTER` —
+  konsekuensi yang disengaja.
 - **Timestamp append-only tak seragam** — tabel log (`work_logs.logged_at`,
   `location_logs.recorded_at`, `notifications.created_at`, `task_assignments.assigned_at`) sengaja
   tanpa `updated_at` karena barisnya immutable. **Defensible**; siapkan jawabannya saat membahas ERD.

@@ -77,6 +77,41 @@ class LaporanFormTest extends TestCase
         ]);
     }
 
+    public function test_laporan_non_pelanggan_boleh_tanpa_jenis_gangguan(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin);
+
+        // Kategori pemeliharaan: jenis gangguan opsional (pekerjaan preventif, bukan
+        // kerusakan). Tanpa damage_type_id pun harus lolos validasi & tersimpan null.
+        Volt::test('pages.laporan.index')
+            ->set('category', ReportCategory::Pemeliharaan->value)
+            ->set('title', 'Perawatan rutin POP Cibitung')
+            ->set('address', 'POP Cibitung')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('damage_reports', [
+            'category'       => ReportCategory::Pemeliharaan->value,
+            'title'          => 'Perawatan rutin POP Cibitung',
+            'damage_type_id' => null,
+        ]);
+    }
+
+    public function test_laporan_pelanggan_tetap_wajib_jenis_gangguan(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $customer = Customer::factory()->create();
+
+        // Kategori pelanggan (default): jenis gangguan tetap wajib.
+        Volt::test('pages.laporan.index')
+            ->set('customer_id', $customer->id)
+            ->call('save')
+            ->assertHasErrors(['damage_type_id' => 'required']);
+
+        $this->assertSame(0, DamageReport::count());
+    }
+
     public function test_validasi_pelanggan_butuh_customer_id(): void
     {
         $this->actingAs(User::factory()->admin()->create());

@@ -43,8 +43,9 @@ class PageRenderTest extends TestCase
             '/monitoring' => 'Monitoring',
             '/history'    => 'Riwayat',
             '/statistik'  => 'Statistik',
-            '/customers'  => 'Pelanggan',
-            '/users'      => 'Pengguna',
+            '/customers'    => 'Pelanggan',
+            '/damage-types' => 'Jenis Gangguan',
+            '/users'        => 'Pengguna',
         ];
 
         foreach ($halaman as $path => $label) {

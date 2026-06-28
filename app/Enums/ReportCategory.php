@@ -42,6 +42,18 @@ enum ReportCategory: string
     }
 
     /**
+     * Apakah kategori ini mewajibkan jenis gangguan (`damage_type_id`)?
+     *
+     * Hanya gangguan pelanggan riil yang wajib memilih jenis. Untuk `jaringan`/
+     * `pemeliharaan` jenis bersifat opsional — pemeliharaan kerap bukan "kerusakan"
+     * (pekerjaan preventif/terjadwal). Sejajar dengan {@see self::butuhPelanggan()}.
+     */
+    public function butuhJenisGangguan(): bool
+    {
+        return $this === self::Pelanggan;
+    }
+
+    /**
      * Pasangan value => label untuk filter/dropdown.
      *
      * @return array<string, string>

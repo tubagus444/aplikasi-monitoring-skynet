@@ -36,7 +36,7 @@ new #[Layout('layouts.app')] class extends Component
     public ?int $customer_id = null;   // kategori pelanggan: pelanggan terpilih
     public string $title = '';         // kategori jaringan/pemeliharaan: judul laporan
     public string $address = '';       // alamat snapshot (pelanggan) / lokasi-area (non-pelanggan)
-    public int|string $damage_type_id = '';
+    public int|string|null $damage_type_id = '';
     public string $notes = '';
     public array $selectedTechnicians = [];
 
@@ -88,6 +88,12 @@ new #[Layout('layouts.app')] class extends Component
         return ReportCategory::tryFrom($this->category)?->butuhPelanggan() ?? false;
     }
 
+    /** Apakah kategori terpilih saat ini mewajibkan jenis gangguan? */
+    public function butuhJenisGangguan(): bool
+    {
+        return ReportCategory::tryFrom($this->category)?->butuhJenisGangguan() ?? false;
+    }
+
     /** Opsi chip filter status: 'Semua' + seluruh status dari enum. */
     #[Computed]
     public function statusOptions(): array
@@ -121,9 +127,16 @@ new #[Layout('layouts.app')] class extends Component
         // Validasi bersyarat per kategori: pelanggan butuh customer_id (snapshot
         // nama/alamat diambil dari pelanggan terpilih); jaringan/pemeliharaan butuh
         // judul + lokasi (tanpa pelanggan). Sumber kebenaran = ReportCategory.
+        // Jenis gangguan hanya wajib untuk gangguan pelanggan riil. Normalkan '' (sentinel
+        // "belum dipilih" dari <x-select>) menjadi null agar aturan `nullable` benar-benar
+        // lewat saat opsional — string '' bukan null, jadi `exists` akan jalan & gagal.
+        if ($this->damage_type_id === '') {
+            $this->damage_type_id = null;
+        }
+
         $rules = [
             'category'       => 'required|in:' . implode(',', ReportCategory::values()),
-            'damage_type_id' => 'required|exists:damage_types,id',
+            'damage_type_id' => ($this->butuhJenisGangguan() ? 'required' : 'nullable') . '|exists:damage_types,id',
             'notes'          => 'nullable|string',
             // Tiap ID harus user dengan role teknisi — tolak ID palsu/manipulasi
             // (cegah error 500 dari FK) & cegah admin diselundupkan jadi teknisi.
@@ -256,7 +269,7 @@ new #[Layout('layouts.app')] class extends Component
     <x-table-card :rows="$this->reports" empty-icon="o-document-text" empty-text="Tidak ada laporan ditemukan">
         <x-slot:head>
             <th class="w-12">#</th>
-            <th>Pelanggan</th>
+            <th>Laporan</th>
             <th>Alamat</th>
             <th>Jenis Gangguan</th>
             <th>Teknisi</th>
@@ -270,14 +283,12 @@ new #[Layout('layouts.app')] class extends Component
                 <td class="text-base-content/40 text-xs">{{ $report->id }}</td>
                 <td class="font-medium">
                     <div>{{ $report->judul }}</div>
-                    @if($report->category !== \App\Enums\ReportCategory::Pelanggan->value)
-                        <div class="text-xs font-normal text-base-content/40">
-                            {{ \App\Enums\ReportCategory::from($report->category)->label() }}
-                        </div>
-                    @endif
+                    <div class="mt-1">
+                        <x-category-pill :category="$report->category" />
+                    </div>
                 </td>
                 <td class="text-sm text-base-content/70 max-w-40 truncate">{{ $report->address }}</td>
-                <td class="text-sm">{{ $report->damageType->name }}</td>
+                <td class="text-sm">{{ $report->damageType?->name ?? '—' }}</td>
                 <td class="text-sm">
                     @if($report->taskAssignments->isNotEmpty())
                         {{ $report->taskAssignments->pluck('technician.name')->join(', ') }}
@@ -374,14 +385,15 @@ new #[Layout('layouts.app')] class extends Component
 
         <div class="mt-4">
             <x-select
-                label="Jenis Gangguan"
+                label="Jenis Gangguan/Pekerjaan"
                 wire:model="damage_type_id"
                 :options="$this->damageTypes"
                 option-value="id"
                 option-label="name"
-                placeholder="Pilih jenis gangguan..."
+                :placeholder="$this->butuhJenisGangguan() ? 'Pilih jenis gangguan...' : 'Pilih jenis (opsional)...'"
                 icon="o-wrench-screwdriver"
-                required
+                :required="$this->butuhJenisGangguan()"
+                :hint="$this->butuhJenisGangguan() ? null : 'Opsional untuk jaringan/pemeliharaan'"
             />
         </div>
 

@@ -159,7 +159,7 @@ new #[Layout('layouts.app')] class extends Component
                                 @endif
                                 <div class="min-w-0">
                                     <p class="text-sm font-semibold text-base-content truncate">{{ $report->judul }}</p>
-                                    <p class="text-xs font-medium text-base-content/60 truncate">{{ $report->damageType->name }}</p>
+                                    <p class="text-xs font-medium text-base-content/60 truncate">{{ $report->damageType?->name ?? '—' }}</p>
                                     <p class="text-xs text-base-content/35 mt-0.5">{{ $report->created_at->diffForHumans() }}</p>
                                 </div>
                             </div>

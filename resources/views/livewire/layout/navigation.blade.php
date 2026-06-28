@@ -40,6 +40,7 @@ new class extends Component
         <x-mary-menu-item title="Riwayat"    icon="o-clock"              route="history"      />
         <x-mary-menu-item title="Statistik"  icon="o-chart-bar"          route="statistik"    />
         <x-mary-menu-item title="Pelanggan"  icon="o-identification"     route="customers.index" />
+        <x-mary-menu-item title="Jenis Gangguan" icon="o-wrench-screwdriver" route="damage-types.index" />
         <x-mary-menu-item title="Pengguna"   icon="o-users"              route="users.index"  />
     </x-mary-menu>
 

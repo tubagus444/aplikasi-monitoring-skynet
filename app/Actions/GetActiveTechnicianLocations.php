@@ -61,7 +61,7 @@ class GetActiveTechnicianLocations
                 'name'        => $assignment->technician->name,
                 'customer'    => $assignment->report->judul,
                 'address'     => $assignment->report->address,
-                'damage_type' => $assignment->report->damageType->name,
+                'damage_type' => $assignment->report->damageType?->name,
                 'latitude'    => $latest?->latitude,
                 'longitude'   => $latest?->longitude,
                 'last_update' => $latest?->recorded_at?->diffForHumans(),

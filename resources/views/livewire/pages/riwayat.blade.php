@@ -108,7 +108,7 @@ new #[Layout('layouts.app')] class extends Component
     <x-table-card :rows="$this->riwayat" empty-icon="o-clock" empty-text="Belum ada laporan selesai">
         <x-slot:head>
             <th class="w-12">#</th>
-            <th>Pelanggan</th>
+            <th>Laporan</th>
             <th>Alamat</th>
             <th>Jenis Gangguan</th>
             <th>Teknisi</th>
@@ -122,14 +122,12 @@ new #[Layout('layouts.app')] class extends Component
                 <td class="text-base-content/40 text-xs">{{ $report->id }}</td>
                 <td class="font-medium text-sm">
                     <div>{{ $report->judul }}</div>
-                    @if($report->category !== \App\Enums\ReportCategory::Pelanggan->value)
-                        <div class="text-xs font-normal text-base-content/40">
-                            {{ \App\Enums\ReportCategory::from($report->category)->label() }}
-                        </div>
-                    @endif
+                    <div class="mt-1">
+                        <x-category-pill :category="$report->category" />
+                    </div>
                 </td>
                 <td class="text-sm text-base-content/70 max-w-35 truncate">{{ $report->address }}</td>
-                <td class="text-sm">{{ $report->damageType->name }}</td>
+                <td class="text-sm">{{ $report->damageType?->name ?? '—' }}</td>
                 <td class="text-sm">
                     @if($report->taskAssignments->isNotEmpty())
                         {{ $report->taskAssignments->pluck('technician.name')->join(', ') }}
@@ -169,7 +167,7 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="min-w-0">
                     <p class="text-xs text-base-content/40">Laporan #{{ $report->id }}</p>
                     <h3 class="text-lg font-bold text-base-content truncate">{{ $report->judul }}</h3>
-                    <p class="text-sm text-base-content/60">{{ \App\Enums\ReportCategory::from($report->category)->label() }} &middot; {{ $report->damageType->name }}</p>
+                    <p class="text-sm text-base-content/60">{{ \App\Enums\ReportCategory::from($report->category)->label() }} &middot; {{ $report->damageType?->name ?? '—' }}</p>
                 </div>
                 <x-status-pill :status="$report->status" class="shrink-0" />
             </div>
