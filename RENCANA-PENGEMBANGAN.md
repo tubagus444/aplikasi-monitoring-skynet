@@ -23,14 +23,14 @@
 ## Daftar Isi
 
 1. [Modul Pelanggan (Customers)](#1-modul-pelanggan-customers) ✅ 📱 — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
-2. [Catatan & bukti pekerjaan teknisi](#2-catatan--bukti-pekerjaan-teknisi) 📋 📱
+2. [Catatan & bukti pekerjaan teknisi](#2-catatan--bukti-pekerjaan-teknisi) ✅ 📱 — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 3. [Dashboard analitik & filter laporan](#3-dashboard-analitik--filter-laporan) ✅ — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 4. [Pendaftaran pelanggan oleh teknisi saat pemasangan baru](#4-pendaftaran-pelanggan-oleh-teknisi-saat-pemasangan-baru) 💡 📱
 5. [CRUD Jenis Kerusakan (damage_types)](#5-crud-jenis-kerusakan-damage_types) ✅ — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 6. [Metadata laporan: asal komplain & jadwal kunjungan](#6-metadata-laporan-asal-komplain--jadwal-kunjungan) 📋
-7. [Peningkatan peta Monitoring & Dashboard](#7-peningkatan-peta-monitoring--dashboard) 🔨 — opsi A & C ✅ selesai, B menyusul
+7. [Peningkatan peta Monitoring & Dashboard](#7-peningkatan-peta-monitoring--dashboard) 🔨 — opsi A & C ✅ + foto bukti live ✅, B menyusul
 
-> **Urutan eksekusi yang disarankan:** ~~#1~~ ✅ → #2 → ~~#3~~ ✅ → #4 (terakhir, menunggu dosen).
+> **Urutan eksekusi yang disarankan:** ~~#1~~ ✅ → ~~#2~~ ✅ → ~~#3~~ ✅ → #4 (terakhir, menunggu dosen).
 > **#1 SUDAH SELESAI** (lihat Arsip) — fondasi `customers`/`ReportCategory` yang dirujuk #3 & #4
 > kini tersedia, jadi **#3a** (filter/pecahan per kategori) & **#4** tak lagi terblokir olehnya.
 > **~~#5~~ ✅ SUDAH SELESAI** (2026-06-28, lihat Arsip) — CRUD jenis gangguan + jadikan
@@ -42,11 +42,11 @@
 
 ## 1. Modul Pelanggan (Customers) ✅ 📱
 
-**Status:** ✅ **SELESAI** (2026-06-27) — diimplementasi penuh (batch 1–6c, 84 test pass).
-Ringkasan as-built ada di [Arsip](#arsip-rencana-yang-sudah-selesai) di bawah. Detail desain
-berikut ini dipertahankan sebagai **catatan historis** (apa yang diputuskan & dibangun); Fase 2
-(upload foto rumah dari Android via `POST /api/customers/{id}/photos`) masih tersisa — skema
-`customer_photos.uploaded_by` sudah menampungnya, tinggal tambah endpoint.
+**Status:** ✅ **SELESAI** (web 2026-06-27, Android 2026-06-28) — diimplementasi penuh termasuk
+**Fase 2 Android** (upload foto rumah dari lapangan via `POST /api/tasks/{id}/house-photos` +
+detail tugas adaptif per kategori). Ringkasan as-built ada di [Arsip](#arsip-rencana-yang-sudah-selesai)
+di bawah. Detail desain berikut ini dipertahankan sebagai **catatan historis** (apa yang diputuskan
+& dibangun).
 
 ### Latar belakang
 
@@ -259,9 +259,11 @@ pelanggan** (UI detail tugas adaptif per kategori). 📱
 
 ---
 
-## 2. Catatan & bukti pekerjaan teknisi 📋 📱
+## 2. Catatan & bukti pekerjaan teknisi ✅ 📱
 
-**Status:** 📋 Direncanakan — keputusan desain sudah dikunci, belum mulai koding.
+**Status:** ✅ **SELESAI** (2026-06-28) — backend **dan** Android rampung (Lapis A catatan + Lapis B
+foto bukti). Ringkasan as-built ada di [Arsip](#arsip-rencana-yang-sudah-selesai) di bawah. Detail
+desain berikut dipertahankan sebagai **catatan historis** (apa yang diputuskan & dibangun).
 
 ### Latar belakang
 
@@ -475,9 +477,110 @@ perluasan ini diizinkan / perlu penyesuaian framing/judul — sebelum dieksekusi
 
 ---
 
+## 6. Metadata laporan: asal komplain & jadwal kunjungan 📋
+
+**Status:** 📋 Direncanakan — keputusan desain **dikunci 2026-06-28** (lihat di bawah), belum mulai
+koding. Karena Rencana #1 sudah rampung, #6 **butuh migrasi sendiri** (tak bisa lagi membonceng
+migrasi `damage_reports` di #1).
+
+> Catatan historis: nomor #6 sempat hanya tercantum di Daftar Isi tanpa badan seksi (referensi
+> menggantung sejak commit Modul Pelanggan). Seksi ini mengisinya.
+
+### Latar belakang
+
+Laporan saat ini menyimpan **apa** gangguannya, tapi tidak **dari mana** & **kapan** komplain datang,
+juga tidak **kapan** dijadwalkan ditangani. Kolom `created_at` = waktu admin **mengetik** laporan di
+web — bukan waktu pelanggan **melapor**. Akibatnya aplikasi tak bisa mengukur **kecepatan tanggap**
+(response time) maupun menganalisis **saluran komplain**.
+
+Tiga kolom metadata melengkapi laporan menjadi **siklus hidup utuh** — sumber data analitik yang kuat
+untuk bab pembahasan skripsi:
+
+```
+asal komplain → reported_at (lapor) → scheduled_at (jadwal) → sedang_memperbaiki → completed_at (selesai)
+```
+
+### Keputusan yang sudah dikunci
+
+1. **Ketiga kolom masuk semua** (`report_source` + `reported_at` + `scheduled_at`) — satu migrasi,
+   saling melengkapi membentuk lifecycle laporan. Murah (kolom + field form), nilai analitik tinggi.
+2. **`report_source` = enum `App\Enums\ReportSource`** (sumber kebenaran, ikut pola
+   `ReportCategory`/`CustomerStatus` — **tidak di-cast**, pakai `->value`, hindari literal). Nilai awal:
+   `whatsapp` → WhatsApp, `telepon` → Telepon, `datang` → Datang langsung, `lainnya` → Lainnya.
+   `options()` untuk chip/select, `values()` untuk validasi `in:`. **Enum** (bukan teks bebas) supaya
+   bisa diagregasi rapi di Statistik (pecahan komplain per saluran) tanpa typo/variasi ejaan.
+3. **`scheduled_at` = field sederhana** (datetime nullable) — diisi admin, tampil di detail/tabel,
+   bisa difilter "jadwal hari ini". **TANPA** pengingat/notifikasi FCM/view kalender (sengaja, jaga
+   lingkup; bisa ditingkatkan kelak sebagai rencana terpisah).
+4. **Semua kolom nullable** → data lama tetap valid (`report_source`/`reported_at`/`scheduled_at` =
+   NULL, tampil "—"). Tak perlu backfill.
+5. **`reported_at` default `now()`** saat buat laporan bila admin tak mengisinya — mengurangi friksi
+   input; admin tinggal mengoreksi bila komplain masuk lebih awal dari saat diketik.
+
+### Skema perubahan `damage_reports` (migrasi baru)
+
+| Kolom           | Tipe              | Catatan                                                         |
+| --------------- | ----------------- | -------------------------------------------------------------- |
+| `report_source` | string nullable   | Nilai enum `ReportSource` (saluran komplain); NULL = "—"        |
+| `reported_at`   | datetime nullable | Kapan komplain masuk dari pelanggan (≠ `created_at`)            |
+| `scheduled_at`  | datetime nullable | Jadwal kunjungan teknisi                                        |
+
+Enum `App\Enums\ReportSource` (`whatsapp`/`telepon`/`datang`/`lainnya`) — pola sama enum lain
+(tak di-cast, `options()`/`values()`). `reported_at`/`scheduled_at` di-`cast` `datetime` di model
+(ikut pola `completed_at`); `report_source` **tidak** di-cast (pola enum string).
+
+### Tampilan & analitik
+
+- **Form Laporan** ([laporan/index.blade.php](resources/views/livewire/pages/laporan/index.blade.php)):
+  tambah 3 input opsional di modal — select asal komplain (`icon="o-chat-bubble-left-right"`),
+  datetime waktu lapor (`o-clock`), datetime jadwal kunjungan (`o-calendar`). Bahasa visual:
+  `rounded-full`, icon kontekstual.
+- **Tabel/detail Laporan & Riwayat:** tampilkan asal komplain sebagai **pil** (komponen baru
+  `<x-source-pill>` mengikuti pola `<x-category-pill>`) + jadwal kunjungan. Opsional: filter
+  "jadwal hari ini" di halaman Laporan.
+- **Halaman Statistik** ([statistik.blade.php](resources/views/livewire/pages/statistik.blade.php)):
+  tambah **pecahan komplain per saluran** (`report_source`) + **rata-rata response time**
+  (`reported_at` → `completed_at`), melengkapi rata-rata durasi penanganan yang sudah ada. Query
+  DB-agnostic (jalan di MySQL & SQLite test).
+- **PDF Riwayat (opsional):** kolom asal komplain di template ringkasan.
+
+### Rencana implementasi (langkah)
+
+1. Enum `App\Enums\ReportSource`.
+2. Migrasi `add_metadata_to_damage_reports` (`report_source`, `reported_at`, `scheduled_at` — semua
+   nullable).
+3. Model [`DamageReport`](app/Models/DamageReport.php): `$fillable` + cast `reported_at`/`scheduled_at`
+   (datetime); `report_source` tak di-cast. Accessor label source bila perlu (null-safe → "—").
+4. Form Laporan: 3 field + validasi bersyarat (`report_source` `nullable|in:ReportSource::values()`;
+   `reported_at`/`scheduled_at` `nullable|date`); default `reported_at = now()` bila kosong.
+5. Factory/seeder: isi contoh `report_source` + `reported_at` (+ sebagian `scheduled_at`) agar
+   Statistik ada datanya.
+6. Tampilan: `<x-source-pill>` + jadwal di tabel/detail/Riwayat.
+7. Statistik: pecahan per saluran + rata-rata response time.
+8. Test: simpan metadata dari form, enum `ReportSource`, agregat saluran & response time di Statistik.
+9. [`CLAUDE.md`](CLAUDE.md): enum baru `ReportSource`, kolom metadata `damage_reports`, dokumentasi
+   Statistik bertambah; lalu pindahkan rencana ini ke Arsip.
+
+### Dampak API Android 📱 (opsional, bukan blocker)
+
+Kolom ini **diisi admin di web** — Android tak wajib berubah. Sebagai peningkatan opsional,
+[`TaskController`](app/Http/Controllers/Api/TaskController.php) detail tugas bisa menyertakan
+`scheduled_at` agar teknisi tahu jadwal kunjungan (dan `report_source`/`reported_at` bila berguna).
+Bisa jadi fase lanjutan setelah web selesai.
+
+### Catatan / risiko
+
+- **`reported_at` menambah sedikit friksi input** admin — diredam dengan default `now()`.
+- **Response time = nilai jual kuat saat sidang** ("seberapa cepat komplain ditanggapi") — gunakan
+  `reported_at` → `completed_at` (atau → mulai memperbaiki untuk "waktu respons awal").
+- **Jangan over-engineer jadwal** jadi sistem reminder/kalender — sudah diputuskan field sederhana.
+
+---
+
 ## 7. Peningkatan peta Monitoring & Dashboard 🔨
 
-**Status:** 🔨 Dikerjakan bertahap — **opsi A & C ✅ SELESAI**, opsi B 💡 Ide (terikat retensi
+**Status:** 🔨 Dikerjakan bertahap — **opsi A & C ✅ SELESAI** + **tambahan: foto bukti pekerjaan
+LIVE di Monitoring ✅ SELESAI** (di luar 3 opsi, lihat di bawah), opsi B 💡 Ide (terikat retensi
 data). Backlog idenya juga tercatat di
 [`CATATAN-FITUR.md` #12](CATATAN-FITUR.md#12-peningkatan-peta-monitoring-marker-trail-gps-basi);
 bagian ini = jalur aktif/as-built-nya.
@@ -535,6 +638,31 @@ di titik itu padahal datanya usang.
 - **Test:** `GetActiveTechnicianLocationsTest` + 2 kasus (titik segar tak basi, titik usang ditandai
   basi & lokasi terakhir tetap tampil). Masih 0 Android/DB.
 
+### ✅ Tambahan — Foto bukti pekerjaan LIVE di Monitoring (SELESAI, di luar 3 opsi)
+
+> Bukan bagian dari opsi A/B/C (yang soal *marker/trail*), tapi peningkatan halaman Monitoring yang
+> **membonceng data Rencana #2** ([Catatan & bukti pekerjaan teknisi](#2-catatan--bukti-pekerjaan-teknisi)).
+> Dicatat di sini karena tempat fiturnya = peta Monitoring.
+
+**Latar:** foto bukti pekerjaan (`report_photos`, dibuat di Rencana #2) sebelumnya **hanya** tampil
+di halaman Riwayat — artinya admin baru bisa melihatnya setelah pekerjaan **selesai**. Ide user:
+perlihatkan juga **saat `sedang_memperbaiki`** agar admin bisa pantau progres real-time. Datanya
+sudah ada; ini murni soal **tata letak UI**, bukan fitur/skema baru.
+
+**Yang dibangun (0 perubahan Android/DB):**
+- [`GetActiveTechnicianLocations`](app/Actions/GetActiveTechnicianLocations.php): eager-load
+  `report.photos` (dibatasi `MAX_PHOTOS = 8`, terbaru dulu — tetap **anti-N+1**) + key `photos`
+  (url + caption) per teknisi di payload. Dashboard memakai Action yang sama tapi **mengabaikan**
+  key `photos` (cuma meneruskan data ke peta JS) — aman, tanpa perubahan.
+- [`monitoring.blade.php`](resources/views/livewire/pages/monitoring.blade.php): **strip thumbnail**
+  foto terbaru di kartu sidebar tiap teknisi aktif + **modal galeri** saat diklik
+  (`openPhotos($id)`). Karena halaman sudah `wire:poll.10s`, **foto yang baru diunggah teknisi di
+  tengah pekerjaan otomatis muncul** — inilah inti "monitoring realtime".
+- **Test:** `GetActiveTechnicianLocationsTest` + 2 kasus (foto terbaru-dulu & path → URL storage;
+  teknisi tanpa foto = array kosong). **Total 111 test pass.**
+- **Catatan deploy:** butuh `php artisan storage:link` aktif (foto di disk `public`); view memakai
+  `asset('storage/..')` sesuai konvensi (hindari `Storage::url()` — beda host APP_URL vs serve).
+
 ### Opsi B — Jejak/trail GPS 💡 (BELUM — menunggu keputusan scope)
 
 **Apa:** Selain marker satu titik (posisi terakhir), gambar **garis (`L.polyline`)** menghubungkan
@@ -586,6 +714,35 @@ over-engineer jadi WebSocket.
 ---
 
 ## Arsip (rencana yang sudah selesai)
+
+### ✅ 2. Catatan & bukti pekerjaan teknisi — selesai 2026-06-28
+
+Menjawab kritik dosen "sisi Android kurang info pekerjaan" — teknisi kini bisa melampirkan
+**catatan** + **foto bukti** saat bekerja, bukan cuma menekan tombol status. Dua lapis dikerjakan
+keduanya; **backend dan Android rampung**. Yang terbangun:
+
+- **Lapis A — Catatan pekerjaan (`work_logs.description`):**
+  [`TaskController::updateStatus`](app/Http/Controllers/Api/TaskController.php) menerima `description`
+  opsional (`nullable|string|max:1000`) → disimpan di work log transisi. Tampil di timeline Riwayat
+  & PDF lengkap (tempatnya sudah tersedia) dan di API detail tugas.
+- **Lapis B — Foto bukti (`report_photos`):** tabel baru (append-only, disk `public`,
+  `cascadeOnDelete` ke laporan, `uploaded_by` `nullOnDelete`) + model `ReportPhoto` + relasi
+  `DamageReport::photos()`. Endpoint **`POST /api/tasks/{id}/photos`** (multipart `photo` wajib
+  gambar ≤5MB + `caption` opsional, di-scope kepemilikan tugas → 404 bila bukan miliknya).
+  `GET /api/tasks/{id}` menyertakan `repair_photos`. Thumbnail tampil di modal detail Riwayat.
+- **Fase 2 foto rumah (satu paket):** **`POST /api/tasks/{id}/house-photos`** → `customer_photos`
+  (hanya kategori pelanggan, 422 bila bukan). Melengkapi Rencana #1 Fase 2.
+- **Android** 📱: field catatan + ambil/unggah foto dari kamera + konfirmasi halus "Selesaikan tanpa
+  catatan/foto?" — **sudah diimplementasi** di repo Android.
+- **Test:** `TaskTest` (description tersimpan & tampil), `TaskPhotoTest` (unggah bukti & rumah,
+  validasi gambar, scope kepemilikan, repair_photos di detail), `RiwayatCategoryTest` (modal detail
+  tampilkan foto bukti).
+
+> **Peningkatan lanjutan (di luar #2):** foto bukti kini juga tampil **LIVE saat `sedang_memperbaiki`**
+> di halaman Monitoring — lihat [Rencana #7 → tambahan foto bukti live](#7-peningkatan-peta-monitoring--dashboard).
+>
+> Detail desain & keputusan lengkap tetap di [bagian #2 di atas](#2-catatan--bukti-pekerjaan-teknisi)
+> sebagai catatan historis.
 
 ### ✅ 5. CRUD Jenis Kerusakan (damage_types) — selesai 2026-06-28
 
@@ -652,12 +809,13 @@ pass**. Yang terbangun:
 - **Ekspor pelanggan:** PDF (dompdf) + **Excel** (`maatwebsite/excel`), ikut filter via scope
   tunggal `Customer::filtered`.
 
-**Fase 2 — upload foto rumah dari Android — ✅ SELESAI backend (2026-06-27):**
+**Fase 2 — upload foto rumah dari Android — ✅ SELESAI (backend 2026-06-27, Android 2026-06-28):**
 - Dibuat sebagai **`POST /api/tasks/{id}/house-photos`** (task-scoped, BUKAN `/customers/{id}/photos`
   mentah — otorisasi alami: teknisi hanya boleh menambah foto untuk laporan yang ditugaskan padanya;
   hanya kategori pelanggan, non-pelanggan → 422). Multipart `photo`+`caption` → `customer_photos`,
   `uploaded_by` dari token. Dikerjakan satu paket dengan foto bukti pekerjaan (Rencana #2).
-- **Sisa = UI Android** (tombol kamera kirim ke endpoint itu). Kontrak di `CLAUDE_ANDROID.md`.
+- **UI Android sudah jadi** (tombol kamera kirim ke endpoint itu + detail tugas adaptif per kategori
+  menampilkan foto rumah & kontak pelanggan). Kontrak di `CLAUDE_ANDROID.md`.
 - **Catatan untuk Rencana #4:** endpoint task-scoped ini **tidak** otomatis melayani pendaftaran
   pelanggan baru #4 (pelanggan baru belum punya task) — lihat pergeseran endpoint di [bagian #4](#4-pendaftaran-pelanggan-oleh-teknisi-saat-pemasangan-baru).
 
