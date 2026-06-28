@@ -535,18 +535,47 @@ di titik itu padahal datanya usang.
 - **Test:** `GetActiveTechnicianLocationsTest` + 2 kasus (titik segar tak basi, titik usang ditandai
   basi & lokasi terakhir tetap tampil). Masih 0 Android/DB.
 
-### Opsi B — Jejak/trail GPS 💡
+### Opsi B — Jejak/trail GPS 💡 (BELUM — menunggu keputusan scope)
+
+**Apa:** Selain marker satu titik (posisi terakhir), gambar **garis (`L.polyline`)** menghubungkan
+beberapa titik terakhir tiap teknisi → terlihat **rute/pergerakan**, bukan posisi diam. Marker tetap
+di ujung terbaru, ekornya jadi jejak.
 
 **Kenapa:** pembeda terkuat untuk tema "monitoring perbaikan" — bukan cuma titik, tapi rute
-pergerakan nyata teknisi.
+pergerakan nyata teknisi. Paling "menjual" naratif saat sidang.
 
-**Bagaimana:** perluas Action (atau method baru) untuk menarik **N titik terakhir** per teknisi
-(bukan hanya `MAX(recorded_at)` tunggal), render `L.polyline`.
+**Beda fundamental dari A & C:** A & C cuma mengubah **tampilan satu titik** (warna/inisial/abu).
+B mengubah **bentuk data** yang ditarik — dari "1 titik per teknisi" jadi "banyak titik per
+teknisi". Itu sebabnya paling berat.
 
-**Bergantung pada retensi data** ([`CATATAN-FITUR.md` #1](CATATAN-FITUR.md)): jangan pakai pendekatan
-hapus-total tanpa tenggang, atau titiknya keburu hilang. **Beririsan dengan
-[`CATATAN-FITUR.md` #2](CATATAN-FITUR.md)** (trail di Riwayat) — bedanya: ini trail *live* saat masih
-dikerjakan, #2 trail *historis* laporan selesai; keduanya berbagi sumber `location_logs`.
+**Bagaimana (garis besar):**
+- [`GetActiveTechnicianLocations`](app/Actions/GetActiveTechnicianLocations.php) sekarang **sengaja**
+  hanya menarik titik `MAX(recorded_at)` per pasangan (teknisi, laporan) demi hemat. Trail butuh
+  kebalikannya → buat **method/Action baru** khusus trail (jangan modifikasi Action lama yang dipakai
+  sidebar/dashboard, supaya payload poll-nya tetap ramping).
+- View [`monitoring.blade.php`](resources/views/livewire/pages/monitoring.blade.php): render
+  `L.polyline([[lat,lng],...])` per teknisi selain marker, perbarui garis tiap poll.
+
+**⚠️ Tiga keputusan yang harus diambil dulu (sebelum koding):**
+1. **Berapa titik / rentang waktu?** Semua titik sejak mulai bisa ratusan–ribuan baris. Wajib dibatasi:
+   N titik terakhir **atau** titik X menit terakhir. Untuk peta *live* cukup ekor pendek (mis. 15–30
+   menit terakhir).
+2. **Scope: live saja, atau sekalian Riwayat?** Beririsan dengan
+   [`CATATAN-FITUR.md` #2](CATATAN-FITUR.md) (trail *historis* di halaman Riwayat untuk laporan yang
+   **sudah selesai**). Bedanya: **B = live** saat masih dikerjakan; **#2 = arsip** setelah selesai.
+   Bisa dipisah atau dibangun satu fondasi query bersama. **Belum diputuskan.**
+3. **Beban polling.** Tiap 10 detik kini kirim 1 titik/teknisi; trail kirim N titik/teknisi. Skala
+   SkyNet masih kecil, tapi jangan tarik seluruh jejak.
+
+**⚠️ Prasyarat retensi data** ([`CATATAN-FITUR.md` #1](CATATAN-FITUR.md)): trail butuh titik tetap
+tersimpan. Kalau cleanup `location_logs` kelak pakai mode hapus-total, jejak hilang. Versi **live** B
+relatif aman (pakai titik yang baru masuk); yang paling terdampak adalah trail **historis** #2.
+
+**Catatan jujur (pertimbangan keputusan):** efek visual trail bergantung **adanya pergerakan** —
+kalau teknisi kebanyakan diam di satu titik perbaikan, trail-nya cuma garis pendek/menumpuk. Nilai
+trail paling terasa bila GPS Android benar-benar mengirim titik berkala selama **perjalanan menuju
+lokasi**, bukan hanya saat sudah sampai. Cek dulu perilaku pengiriman GPS sisi Android sebelum
+memutuskan ini layak dikerjakan.
 
 ### Urutan disarankan
 
