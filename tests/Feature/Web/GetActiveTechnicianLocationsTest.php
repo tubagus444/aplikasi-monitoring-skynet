@@ -63,6 +63,38 @@ class GetActiveTechnicianLocationsTest extends TestCase
         $this->assertCount(1, $result);
         $this->assertNull($result[0]['latitude']);
         $this->assertNull($result[0]['last_update']);
+        $this->assertFalse($result[0]['is_stale']); // belum ada GPS = "menunggu", bukan basi
+    }
+
+    public function test_titik_gps_terbaru_tidak_dianggap_basi(): void
+    {
+        [$tech, $report] = $this->buatTeknisiAktif();
+
+        LocationLog::create([
+            'technician_id' => $tech->id, 'report_id' => $report->id,
+            'latitude' => -6.20, 'longitude' => 107.20,
+            'recorded_at' => now()->subMinute(), // masih segar (< 5 menit)
+        ]);
+
+        $result = (new GetActiveTechnicianLocations)();
+
+        $this->assertFalse($result[0]['is_stale']);
+    }
+
+    public function test_titik_gps_usang_ditandai_basi(): void
+    {
+        [$tech, $report] = $this->buatTeknisiAktif();
+
+        LocationLog::create([
+            'technician_id' => $tech->id, 'report_id' => $report->id,
+            'latitude' => -6.20, 'longitude' => 107.20,
+            'recorded_at' => now()->subMinutes(10), // lewat ambang 5 menit
+        ]);
+
+        $result = (new GetActiveTechnicianLocations)();
+
+        $this->assertTrue($result[0]['is_stale']);
+        $this->assertEquals(-6.20, $result[0]['latitude']); // lokasi terakhir tetap tampil
     }
 
     public function test_mengabaikan_laporan_yang_tidak_sedang_diperbaiki(): void

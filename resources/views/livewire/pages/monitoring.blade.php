@@ -60,7 +60,12 @@ new #[Layout('layouts.app')] class extends Component
                             >
                                 <div class="flex items-center justify-between mb-1">
                                     <p class="text-sm font-medium">{{ $tech['name'] }}</p>
-                                    @if($tech['latitude'])
+                                    @if($tech['latitude'] && $tech['is_stale'])
+                                        <span class="inline-flex items-center gap-1 text-xs text-warning">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-warning inline-block"></span>
+                                            GPS terputus
+                                        </span>
+                                    @elseif($tech['latitude'])
                                         <span class="inline-flex items-center gap-1 text-xs text-success">
                                             <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse inline-block"></span>
                                             GPS aktif
@@ -113,9 +118,11 @@ new #[Layout('layouts.app')] class extends Component
         // Palet warna marker — dipilih konsisten per id teknisi (id sama → warna sama
         // selama sesi), jadi tiap teknisi punya identitas warna tetap di peta.
         const MARKER_COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#ca8a04', '#dc2626'];
+        const STALE_COLOR = '#94a3b8'; // GPS basi → abu, marker meredup vs teknisi live
 
-        function colorFor(id) {
-            const n = Math.abs(parseInt(id, 10)) || 0;
+        function colorFor(loc) {
+            if (loc.is_stale) return STALE_COLOR;
+            const n = Math.abs(parseInt(loc.id, 10)) || 0;
             return MARKER_COLORS[n % MARKER_COLORS.length];
         }
 
@@ -130,7 +137,7 @@ new #[Layout('layouts.app')] class extends Component
         // Marker = lingkaran berinisial + segitiga penunjuk lurus ke bawah (tip = lokasi
         // tepat). Style inline karena divIcon di-render di pane peta, bukan dipindai Tailwind.
         function makeIcon(loc) {
-            const color = colorFor(loc.id);
+            const color = colorFor(loc);
             const html = `
                 <div style="position:relative;width:34px;height:40px">
                     <div style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.35)">

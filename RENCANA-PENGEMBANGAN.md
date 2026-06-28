@@ -28,7 +28,7 @@
 4. [Pendaftaran pelanggan oleh teknisi saat pemasangan baru](#4-pendaftaran-pelanggan-oleh-teknisi-saat-pemasangan-baru) 💡 📱
 5. [CRUD Jenis Kerusakan (damage_types)](#5-crud-jenis-kerusakan-damage_types) ✅ — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 6. [Metadata laporan: asal komplain & jadwal kunjungan](#6-metadata-laporan-asal-komplain--jadwal-kunjungan) 📋
-7. [Peningkatan peta Monitoring & Dashboard](#7-peningkatan-peta-monitoring--dashboard) 🔨 — opsi A ✅ selesai, B/C menyusul
+7. [Peningkatan peta Monitoring & Dashboard](#7-peningkatan-peta-monitoring--dashboard) 🔨 — opsi A & C ✅ selesai, B menyusul
 
 > **Urutan eksekusi yang disarankan:** ~~#1~~ ✅ → #2 → ~~#3~~ ✅ → #4 (terakhir, menunggu dosen).
 > **#1 SUDAH SELESAI** (lihat Arsip) — fondasi `customers`/`ReportCategory` yang dirujuk #3 & #4
@@ -477,8 +477,8 @@ perluasan ini diizinkan / perlu penyesuaian framing/judul — sebelum dieksekusi
 
 ## 7. Peningkatan peta Monitoring & Dashboard 🔨
 
-**Status:** 🔨 Dikerjakan bertahap — **opsi A ✅ SELESAI**, opsi C 📋 Direncanakan, opsi B 💡 Ide
-(terikat retensi data). Backlog idenya juga tercatat di
+**Status:** 🔨 Dikerjakan bertahap — **opsi A & C ✅ SELESAI**, opsi B 💡 Ide (terikat retensi
+data). Backlog idenya juga tercatat di
 [`CATATAN-FITUR.md` #12](CATATAN-FITUR.md#12-peningkatan-peta-monitoring-marker-trail-gps-basi);
 bagian ini = jalur aktif/as-built-nya.
 
@@ -500,7 +500,7 @@ dipakai bersama kedua peta.
 | Opsi | Apa | Status |
 | ---- | --- | ------ |
 | **A. Marker custom** | Ganti pin default → badge bulat berinisial nama + warna khas, konsisten per id teknisi | ✅ Selesai |
-| **C. Indikator GPS basi** | Bila titik terakhir > X menit, marker & sidebar diberi warna "GPS terputus" | 📋 Direncanakan |
+| **C. Indikator GPS basi** | Bila titik terakhir > 5 menit, marker & sidebar diberi warna "GPS terputus" | ✅ Selesai |
 | **B. Jejak/trail GPS** | `L.polyline` dari beberapa titik terakhir pergerakan teknisi saat `sedang_memperbaiki` | 💡 Ide |
 
 ### ✅ Opsi A — Marker custom (SELESAI)
@@ -519,14 +519,21 @@ halaman Monitoring, marker beda bentuk akan terlihat belum rapi.
   (blok `@script` peta memang dipisah per halaman; yang dibagikan satu sumber hanya *data*-nya, yaitu
   Action PHP). Bukan bau kode baru.
 
-### Opsi C — Indikator GPS basi (stale) 📋
+### ✅ Opsi C — Indikator GPS basi (stale) (SELESAI)
 
 **Kenapa:** GPS HP teknisi bisa mati/sinyal hilang. Tanpa penanda, admin bisa menyangka teknisi diam
 di titik itu padahal datanya usang.
 
-**Bagaimana:** di `GetActiveTechnicianLocations` tambah flag `is_stale` ke payload (mis.
-`recorded_at < now()->subMinutes(5)`), lalu warnai marker & baris sidebar abu/oranye berdasarkan flag
-itu di view (Monitoring + Dashboard). Sedikit logika Action + view; masih 0 Android/DB.
+- **Yang dibangun:** [`GetActiveTechnicianLocations`](app/Actions/GetActiveTechnicianLocations.php)
+  menambah flag `is_stale` ke payload — `true` bila titik terakhir lebih tua dari
+  `STALE_AFTER_MINUTES` (5 menit), `false` bila belum ada GPS sama sekali (itu "Menunggu GPS", bukan
+  basi). Ambang dijadikan konstanta beralasan (polling 10 detik → 5 menit = toleransi lapang).
+- **Monitoring:** sidebar kini punya **tiga keadaan** — "GPS terputus" (warning, titik tak berdenyut),
+  "GPS aktif" (success, berdenyut), "Menunggu GPS". Marker basi diberi warna abu `#94a3b8` (`STALE_COLOR`)
+  via `colorFor(loc)` sehingga meredup di antara teknisi live.
+- **Dashboard:** marker basi ikut abu (peta saja, tak ada sidebar status).
+- **Test:** `GetActiveTechnicianLocationsTest` + 2 kasus (titik segar tak basi, titik usang ditandai
+  basi & lokasi terakhir tetap tampil). Masih 0 Android/DB.
 
 ### Opsi B — Jejak/trail GPS 💡
 

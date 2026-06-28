@@ -23,6 +23,14 @@ use App\Models\TaskAssignment;
 class GetActiveTechnicianLocations
 {
     /**
+     * Ambang "GPS basi": titik terakhir lebih tua dari ini dianggap usang
+     * (sinyal/HP teknisi mungkin mati) → ditandai agar admin tak menyangka
+     * teknisi diam di titik itu. Polling peta tiap 10 detik, jadi 5 menit
+     * memberi toleransi lapang sebelum dianggap terputus.
+     */
+    private const STALE_AFTER_MINUTES = 5;
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public function __invoke(): array
@@ -65,6 +73,11 @@ class GetActiveTechnicianLocations
                 'latitude'    => $latest?->latitude,
                 'longitude'   => $latest?->longitude,
                 'last_update' => $latest?->recorded_at?->diffForHumans(),
+                // null = belum ada GPS sama sekali ("Menunggu GPS", bukan basi);
+                // true = ada titik tapi sudah usang ("GPS terputus").
+                'is_stale'    => $latest?->recorded_at
+                    ? $latest->recorded_at->lt(now()->subMinutes(self::STALE_AFTER_MINUTES))
+                    : false,
             ];
         })->all();
     }

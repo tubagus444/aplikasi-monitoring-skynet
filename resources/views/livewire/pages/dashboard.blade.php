@@ -204,9 +204,11 @@ new #[Layout('layouts.app')] class extends Component
             // Marker custom (selaras halaman Monitoring): badge bulat berinisial + warna
             // konsisten per id teknisi. Style inline karena divIcon di-render di pane peta.
             const MARKER_COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#ca8a04', '#dc2626'];
+            const STALE_COLOR = '#94a3b8'; // GPS basi → abu, marker meredup vs teknisi live
 
-            function colorFor(id) {
-                const n = Math.abs(parseInt(id, 10)) || 0;
+            function colorFor(loc) {
+                if (loc.is_stale) return STALE_COLOR;
+                const n = Math.abs(parseInt(loc.id, 10)) || 0;
                 return MARKER_COLORS[n % MARKER_COLORS.length];
             }
 
@@ -219,7 +221,7 @@ new #[Layout('layouts.app')] class extends Component
             }
 
             function makeIcon(loc) {
-                const color = colorFor(loc.id);
+                const color = colorFor(loc);
                 const html = `
                     <div style="position:relative;width:34px;height:40px">
                         <div style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.35)">
