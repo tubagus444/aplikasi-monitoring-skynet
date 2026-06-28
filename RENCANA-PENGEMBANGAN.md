@@ -28,6 +28,7 @@
 4. [Pendaftaran pelanggan oleh teknisi saat pemasangan baru](#4-pendaftaran-pelanggan-oleh-teknisi-saat-pemasangan-baru) 💡 📱
 5. [CRUD Jenis Kerusakan (damage_types)](#5-crud-jenis-kerusakan-damage_types) ✅ — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 6. [Metadata laporan: asal komplain & jadwal kunjungan](#6-metadata-laporan-asal-komplain--jadwal-kunjungan) 📋
+7. [Peningkatan peta Monitoring & Dashboard](#7-peningkatan-peta-monitoring--dashboard) 🔨 — opsi A ✅ selesai, B/C menyusul
 
 > **Urutan eksekusi yang disarankan:** ~~#1~~ ✅ → #2 → ~~#3~~ ✅ → #4 (terakhir, menunggu dosen).
 > **#1 SUDAH SELESAI** (lihat Arsip) — fondasi `customers`/`ReportCategory` yang dirujuk #3 & #4
@@ -471,6 +472,80 @@ perluasan ini diizinkan / perlu penyesuaian framing/judul — sebelum dieksekusi
 - **Bergantung penuh pada Rencana #1** — tanpa entitas `customers`, tak ada yang didaftarkan.
 - Mulai dari versi minimal (daftar pelanggan + verifikasi) lebih aman; job `pemasangan` termonitor
   bisa jadi peningkatan berikutnya.
+
+---
+
+## 7. Peningkatan peta Monitoring & Dashboard 🔨
+
+**Status:** 🔨 Dikerjakan bertahap — **opsi A ✅ SELESAI**, opsi C 📋 Direncanakan, opsi B 💡 Ide
+(terikat retensi data). Backlog idenya juga tercatat di
+[`CATATAN-FITUR.md` #12](CATATAN-FITUR.md#12-peningkatan-peta-monitoring-marker-trail-gps-basi);
+bagian ini = jalur aktif/as-built-nya.
+
+### Latar belakang
+
+Peta GPS ([monitoring.blade.php](resources/views/livewire/pages/monitoring.blade.php) &
+[dashboard.blade.php](resources/views/livewire/pages/dashboard.blade.php)) memakai pin biru default
+Leaflet yang **identik untuk semua teknisi** (tak terbedakan tanpa klik popup), hanya menampilkan
+**satu titik terakhir** (tak ada cerita pergerakan), dan `last_update` sudah dihitung di
+[`GetActiveTechnicianLocations`](app/Actions/GetActiveTechnicianLocations.php) tapi **belum dipakai**
+untuk menandai data basi. Tiga peningkatan memperkuat narasi "monitoring perbaikan realtime".
+
+Semua murni **lapisan presentasi (+ sedikit logika di Action)** — **0 perubahan Android/DB** (kecuali
+opsi B yang butuh titik GPS tetap tersimpan). Data lokasi tetap dari satu sumber Action yang sama,
+dipakai bersama kedua peta.
+
+### Tiga opsi
+
+| Opsi | Apa | Status |
+| ---- | --- | ------ |
+| **A. Marker custom** | Ganti pin default → badge bulat berinisial nama + warna khas, konsisten per id teknisi | ✅ Selesai |
+| **C. Indikator GPS basi** | Bila titik terakhir > X menit, marker & sidebar diberi warna "GPS terputus" | 📋 Direncanakan |
+| **B. Jejak/trail GPS** | `L.polyline` dari beberapa titik terakhir pergerakan teknisi saat `sedang_memperbaiki` | 💡 Ide |
+
+### ✅ Opsi A — Marker custom (SELESAI)
+
+Diterapkan **identik di kedua peta** (Monitoring & Dashboard) agar konsisten — dashboard menaut ke
+halaman Monitoring, marker beda bentuk akan terlihat belum rapi.
+
+- **Yang dibangun:** helper `MARKER_COLORS` (palet 8 warna) + `colorFor(id)` (pilih warna `id % 8`,
+  konsisten per teknisi selama sesi) + `initialsFor(name)` (inisial kata pertama+terakhir) +
+  `makeIcon(loc)` (`L.divIcon`: lingkaran berinisial + segitiga penunjuk lurus ke bawah, tip = lokasi
+  tepat). `L.marker(...)` diberi `{ icon: makeIcon(loc) }`.
+- **Style inline** di dalam html divIcon (di-render di pane peta, bukan dipindai Tailwind);
+  `className: 'technician-marker'` meng-override default agar tak muncul kotak putih `leaflet-div-icon`.
+- **Tanpa build** (JS inline di `@script`, bukan asset Vite). 0 perubahan backend/Android/DB.
+- **Trade-off diterima:** JS marker terduplikasi di dua blade — konsisten dengan pola yang sudah ada
+  (blok `@script` peta memang dipisah per halaman; yang dibagikan satu sumber hanya *data*-nya, yaitu
+  Action PHP). Bukan bau kode baru.
+
+### Opsi C — Indikator GPS basi (stale) 📋
+
+**Kenapa:** GPS HP teknisi bisa mati/sinyal hilang. Tanpa penanda, admin bisa menyangka teknisi diam
+di titik itu padahal datanya usang.
+
+**Bagaimana:** di `GetActiveTechnicianLocations` tambah flag `is_stale` ke payload (mis.
+`recorded_at < now()->subMinutes(5)`), lalu warnai marker & baris sidebar abu/oranye berdasarkan flag
+itu di view (Monitoring + Dashboard). Sedikit logika Action + view; masih 0 Android/DB.
+
+### Opsi B — Jejak/trail GPS 💡
+
+**Kenapa:** pembeda terkuat untuk tema "monitoring perbaikan" — bukan cuma titik, tapi rute
+pergerakan nyata teknisi.
+
+**Bagaimana:** perluas Action (atau method baru) untuk menarik **N titik terakhir** per teknisi
+(bukan hanya `MAX(recorded_at)` tunggal), render `L.polyline`.
+
+**Bergantung pada retensi data** ([`CATATAN-FITUR.md` #1](CATATAN-FITUR.md)): jangan pakai pendekatan
+hapus-total tanpa tenggang, atau titiknya keburu hilang. **Beririsan dengan
+[`CATATAN-FITUR.md` #2](CATATAN-FITUR.md)** (trail di Riwayat) — bedanya: ini trail *live* saat masih
+dikerjakan, #2 trail *historis* laporan selesai; keduanya berbagi sumber `location_logs`.
+
+### Urutan disarankan
+
+**A → C → B** (cepat & kentara dulu; trail terakhir karena paling banyak kerja & terikat retensi
+data). Polling 10 detik = full Livewire round-trip; untuk skala SkyNet biarkan apa adanya, jangan
+over-engineer jadi WebSocket.
 
 ---
 

@@ -27,7 +27,8 @@
 9. [Masa berlaku token Android (Sanctum expiration)](#9-masa-berlaku-token-android-sanctum-expiration) 🟡
 10. [Catatan kecil lainnya](#10-catatan-kecil-lainnya) 💡
 11. [Rencana deploy ke hosting (shared & VPS)](#11-rencana-deploy-ke-hosting-shared--vps) 🟡 📱
-12. [Sudah dikerjakan (arsip)](#12-sudah-dikerjakan-arsip)
+12. [Peningkatan peta Monitoring (marker, trail, GPS basi)](#12-peningkatan-peta-monitoring-marker-trail-gps-basi) 💡
+13. [Sudah dikerjakan (arsip)](#13-sudah-dikerjakan-arsip)
 
 ---
 
@@ -106,7 +107,9 @@ sama sekali** — ini hook alami untuk fitur tersebut.
 
 **Catatan:** **Bergantung pada fitur #1.** Kalau titik GPS sudah dihapus pakai pendekatan A,
 rute tidak bisa digambar. Jadi kalau fitur ini mau dibuat, retensi data harus pakai pendekatan B
-(sisakan titik) atau masa tenggang yang panjang.
+(sisakan titik) atau masa tenggang yang panjang. **Beririsan dengan fitur #12 opsi B** (trail GPS
+di peta Monitoring) — bedanya: ini trail *historis* di Riwayat (laporan sudah selesai), fitur #12
+trail *live* saat laporan masih dikerjakan. Keduanya berbagi sumber data `location_logs`.
 
 ---
 
@@ -180,6 +183,13 @@ sebagian datar.
 | Monitoring | `/monitoring` | `monitoring.blade.php` | `monitoring` | ✅ |
 | Riwayat | `/history` | `riwayat.blade.php` | `history` | ❌ |
 | Pengguna | `/users` | `pengguna/index.blade.php` | `users.index` | ❌ |
+| Pelanggan | `/customers` | `pelanggan/index.blade.php` | `customers.index` | ❌ |
+| Statistik | `/statistik` | `statistik.blade.php` | `statistik` | ✅ |
+| Jenis Gangguan | `/damage-types` | `jenis-gangguan/index.blade.php` | `damage-types.index` | ❌ |
+
+> Tabel di atas sudah memasukkan halaman yang ditambah belakangan (Pelanggan, Statistik, Jenis
+> Gangguan) — pola campurnya **makin banyak** (kini 5 dari 8 halaman tak konsisten), jadi kalau
+> mau dirapikan, ruang lingkup `git mv`-nya lebih besar dari estimasi awal entri ini.
 
 Dua masalah terpisah:
 - **A. Bahasa campur** — file ID (`laporan`) vs route EN (`reports`). Harus hafal pemetaan untuk tahu
@@ -229,55 +239,40 @@ Langkah konkret (blast radius kecil):
 
 ---
 
-## 5. Foto bukti perbaikan 🟡 📱
+## 5. Foto bukti perbaikan ✅ backend SELESAI — sisa UI Android 📱
 
-**Apa:** Teknisi mengunggah foto bukti (sebelum/sesudah) perbaikan dari Android; admin melihatnya
-di detail Riwayat dan PDF.
+> **Backend sudah jadi (2026-06).** Diimplementasi pakai **opsi B** (tabel `report_photos`, bukan
+> kolom di `work_logs`) karena lebih fleksibel (banyak foto sebelum/sesudah per laporan). Endpoint
+> `POST /api/tasks/{id}/photos` (multipart `photo` ≤5MB + `caption` opsional, di-scope kepemilikan
+> tugas) sudah ada, foto tampil di modal detail [Riwayat](resources/views/livewire/pages/riwayat.blade.php)
+> sebagai `repair_photos`, dan dikirim ke Android via detail tugas. Test: `TaskPhotoTest`. **Sisa
+> hanya UI Android** (kamera + unggah). Lihat memory `catatan-bukti-pekerjaan-progres`.
 
-**Kenapa:** Saat ini teknisi hanya menekan **Selesai** — tidak ada bukti pekerjaan benar dilakukan.
-GPS hanya membuktikan teknisi **berada di lokasi**, bukan bahwa perbaikan dikerjakan. Ini gap
-fungsional + akuntabilitas yang **paling mungkin ditanya penguji** ("bagaimana admin tahu teknisi
-benar memperbaiki, bukan asal klik selesai?").
+**Apa (sudah tercapai):** Teknisi mengunggah foto bukti (sebelum/sesudah) perbaikan dari Android;
+admin melihatnya di detail Riwayat. Menjawab pertanyaan akuntabilitas "bagaimana admin tahu teknisi
+benar memperbaiki, bukan asal klik selesai?" — GPS hanya membuktikan teknisi **berada di lokasi**,
+foto membuktikan **pekerjaan dikerjakan**.
 
-**Bagaimana:**
-- Simpan **path file** (bukan blob) di DB; file di disk `public` (`php artisan storage:link`).
-- Dua opsi skema:
+**Yang tersisa (Android):** layar kamera/galeri + multipart upload ke `POST /api/tasks/{id}/photos`,
+kompres di device sebelum kirim. Validasi server sudah ada (`image|max:5120`).
 
-  | Opsi | Skema | Trade-off |
-  |---|---|---|
-  | **A** | Kolom `proof_photo_path` (nullable) di `work_logs` | Simpel, 1 foto per transisi status. Cukup untuk skripsi |
-  | **B** | Tabel baru `report_photos` (`report_id`, `path`, `caption`, `created_at`) | Banyak foto per laporan, lebih fleksibel, lebih rumit |
-
-- API: perluas `POST /api/tasks/{id}/status` agar menerima `multipart/form-data` dengan field
-  `photo` saat status `done` (atau buat endpoint upload terpisah).
-- Web: tampilkan thumbnail di modal detail [Riwayat](resources/views/livewire/pages/riwayat.blade.php)
-  dan sertakan di PDF lengkap (dompdf bisa me-render `<img>` dari path lokal/absolut).
-
-**Catatan:** Perlu perubahan **sisi Android** (kamera + multipart upload). Validasi ukuran/jenis
-(`image|max:2048`) dan kompres di device. Untuk skripsi, **opsi A cukup** — sebut opsi B sebagai
-pengembangan lanjut.
+**Catatan lanjutan (belum dikerjakan, opsional):** sertakan foto di **PDF riwayat lengkap** (dompdf
+bisa render `<img>` dari path lokal) — saat ini foto hanya tampil di modal web, belum di PDF.
 
 ---
 
-## 6. Keterangan (`description`) pada work log 🟡 📱
+## 6. Keterangan (`description`) pada work log ✅ backend SELESAI — sisa UI Android 📱
 
-**Apa:** Mengisi kolom `description` pada `work_logs` dengan catatan pekerjaan dari teknisi.
+> **Backend sudah jadi (2026-06).** `POST /api/tasks/{id}/status` kini menerima `description`
+> opsional (`max:1000`, lihat [TaskController](app/Http/Controllers/Api/TaskController.php#L49)),
+> disimpan di work log transisi, dan tampil di timeline Riwayat + dikirim balik via API detail tugas.
+> Test: `TaskTest` menguji catatan tersimpan & tampil. **Sisa hanya field catatan di UI Android.**
 
-**Kenapa:** Kolom `work_logs.description` **sudah ada** di skema
-([migrasi work_logs](database/migrations/2026_06_05_145717_create_work_logs_table.php)) tapi
-**tidak pernah diisi** — [TaskController::updateStatus](app/Http/Controllers/Api/TaskController.php#L82-L86)
-membuat work log hanya dengan `status`. Akibatnya "Log Aktivitas Pekerjaan" hanya berisi transisi
-status tanpa keterangan apa yang dikerjakan; kalau penguji membuka fitur ini, isinya kosong.
+**Apa (sudah tercapai):** Kolom `work_logs.description` yang dulu tak pernah diisi kini terisi
+catatan pekerjaan dari teknisi, sehingga "Log Aktivitas Pekerjaan" tidak lagi kosong.
 
-**Bagaimana:**
-- Backend (perubahan sangat kecil — kolom & relasi sudah siap): validasi `description` opsional di
-  [TaskController](app/Http/Controllers/Api/TaskController.php#L36) lalu teruskan ke
-  `WorkLog::create([... 'description' => $request->description])`.
-- Android: tambah field catatan (opsional) di layar "Sedang Memperbaiki" / saat menutup tugas.
-- Tampilan: timeline work log di Riwayat & PDF tinggal menampilkan `description` bila ada.
-
-**Catatan:** Karena kolomnya **sudah ada**, ini perubahan **paling murah** di daftar ini — hanya
-butuh sedikit kerja Android (mengirim field).
+**Yang tersisa (Android):** tambah field catatan (opsional) di layar "Sedang Memperbaiki" / saat
+menutup tugas, lalu kirim sebagai field `description` saat update status.
 
 ---
 
@@ -480,7 +475,42 @@ JSON Firebase: **jangan di webroot, jangan di-commit git** (sudah di `.gitignore
 
 ---
 
-## 12. Sudah dikerjakan (arsip)
+## 12. Peningkatan peta Monitoring (marker, trail, GPS basi) 💡
+
+**Apa:** Tiga peningkatan tampilan/akurasi peta [Monitoring](resources/views/livewire/pages/monitoring.blade.php)
+yang fondasinya sudah ada (polling tak reset view, marker diff, anti N+1 lewat
+[GetActiveTechnicianLocations](app/Actions/GetActiveTechnicianLocations.php)) tapi bisa dibuat
+lebih informatif:
+
+| # | Ide | Berdampak vs effort |
+|---|---|---|
+| **A. Marker custom** | Ganti pin biru default Leaflet → `L.divIcon` berisi inisial/nama teknisi + warna khas, jadi "siapa di mana" terbaca tanpa klik popup | Paling cepat, paling kentara untuk demo |
+| **B. Jejak/trail GPS** | Gambar `L.polyline` dari beberapa titik terakhir pergerakan teknisi selama sesi `sedang_memperbaiki` — bukan cuma 1 titik terakhir | Paling "menjual" naratif monitoring; datanya sudah penuh di `location_logs` |
+| **C. Indikator GPS basi (stale)** | Bila titik terakhir > X menit, marker & baris sidebar diberi warna abu/oranye "GPS terputus" | Penting: admin tahu data usang vs teknisi benar-benar diam |
+
+**Kenapa:** Saat ini semua teknisi tampil sebagai pin biru identik (tak terbedakan), peta hanya
+menampilkan satu titik terakhir (tak ada cerita pergerakan), dan `last_update` sudah dihitung di
+Action tapi belum dipakai untuk menandai data basi. Ketiganya memperkuat narasi "monitoring
+perbaikan realtime" yang paling mungkin disorot saat sidang.
+
+**Bagaimana:**
+- **A** — di blok `@script`, ganti `L.marker([lat,lng])` jadi `L.marker([lat,lng], { icon: L.divIcon({...}) })`.
+  Cukup ubah view; data dari Action tak berubah.
+- **B** — perluas Action (atau method baru) untuk menarik N titik terakhir per teknisi (bukan hanya
+  `MAX(recorded_at)` tunggal), lalu render `L.polyline`. **Bergantung pada fitur #1** (retensi data):
+  jangan pakai pendekatan hapus-total tanpa tenggang, atau titiknya keburu hilang. Beririsan dengan
+  **fitur #2** (trail di Riwayat) — bedanya ini trail *live* saat masih dikerjakan.
+- **C** — di Action sudah ada `recorded_at`; tambahkan flag `is_stale` (mis. `recorded_at < now()->subMinutes(5)`)
+  ke payload, lalu warnai marker/sidebar berdasarkan flag itu di view.
+
+**Catatan:** Murni lapisan presentasi + sedikit logika di Action — **0 perubahan Android/DB**
+(kecuali B yang butuh titik GPS tetap tersimpan). Rekomendasi urutan: **A → C → B** (cepat dulu,
+trail terakhir karena paling banyak kerja & terikat retensi data). Polling 10 detik = full Livewire
+round-trip; untuk skala SkyNet biarkan apa adanya, jangan over-engineer jadi WebSocket.
+
+---
+
+## 13. Sudah dikerjakan (arsip)
 
 Catatan ringkas hal yang sudah selesai, biar konteksnya tidak hilang.
 

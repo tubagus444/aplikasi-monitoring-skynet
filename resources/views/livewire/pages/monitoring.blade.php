@@ -110,6 +110,43 @@ new #[Layout('layouts.app')] class extends Component
         const markers = {};
         let viewInitialized = false;
 
+        // Palet warna marker — dipilih konsisten per id teknisi (id sama → warna sama
+        // selama sesi), jadi tiap teknisi punya identitas warna tetap di peta.
+        const MARKER_COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#ca8a04', '#dc2626'];
+
+        function colorFor(id) {
+            const n = Math.abs(parseInt(id, 10)) || 0;
+            return MARKER_COLORS[n % MARKER_COLORS.length];
+        }
+
+        function initialsFor(name) {
+            if (!name) return '?';
+            const parts = name.trim().split(/\s+/);
+            const first = parts[0]?.[0] ?? '';
+            const second = parts.length > 1 ? parts[parts.length - 1][0] : '';
+            return (first + second).toUpperCase() || '?';
+        }
+
+        // Marker = lingkaran berinisial + segitiga penunjuk lurus ke bawah (tip = lokasi
+        // tepat). Style inline karena divIcon di-render di pane peta, bukan dipindai Tailwind.
+        function makeIcon(loc) {
+            const color = colorFor(loc.id);
+            const html = `
+                <div style="position:relative;width:34px;height:40px">
+                    <div style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.35)">
+                        <span style="color:#fff;font-weight:700;font-size:12px;font-family:ui-sans-serif,system-ui,sans-serif;line-height:1">${initialsFor(loc.name)}</span>
+                    </div>
+                    <div style="position:absolute;left:50%;top:30px;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid ${color}"></div>
+                </div>`;
+            return L.divIcon({
+                html,
+                className: 'technician-marker', // override default agar tak ada kotak putih leaflet-div-icon
+                iconSize: [34, 40],
+                iconAnchor: [17, 38],   // tip segitiga = titik lokasi
+                popupAnchor: [0, -36],
+            });
+        }
+
         function updateMarkers(locations, fitView) {
             const activeIds = locations
                 .filter(l => l.latitude && l.longitude)
@@ -142,7 +179,7 @@ new #[Layout('layouts.app')] class extends Component
                     markers[id].setLatLng([loc.latitude, loc.longitude]);
                     markers[id].getPopup().setContent(popup);
                 } else {
-                    markers[id] = L.marker([loc.latitude, loc.longitude])
+                    markers[id] = L.marker([loc.latitude, loc.longitude], { icon: makeIcon(loc) })
                         .bindPopup(popup)
                         .addTo(map);
                 }
