@@ -6,6 +6,7 @@ use App\Actions\GetActiveTechnicianLocations;
 use App\Models\DamageReport;
 use App\Models\DamageType;
 use App\Models\LocationLog;
+use App\Models\ReportPhoto;
 use App\Models\TaskAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -95,6 +96,38 @@ class GetActiveTechnicianLocationsTest extends TestCase
 
         $this->assertTrue($result[0]['is_stale']);
         $this->assertEquals(-6.20, $result[0]['latitude']); // lokasi terakhir tetap tampil
+    }
+
+    public function test_menyertakan_foto_bukti_pekerjaan_terbaru_dulu(): void
+    {
+        [$tech, $report] = $this->buatTeknisiAktif();
+
+        // created_at tidak fillable (model append-only) → forceCreate untuk set waktu
+        ReportPhoto::forceCreate([
+            'report_id' => $report->id, 'path' => 'report_photos/lama.jpg',
+            'caption' => 'sebelum', 'created_at' => now()->subMinutes(10),
+        ]);
+        ReportPhoto::forceCreate([
+            'report_id' => $report->id, 'path' => 'report_photos/baru.jpg',
+            'caption' => 'sesudah', 'created_at' => now(),
+        ]);
+
+        $result = (new GetActiveTechnicianLocations)();
+
+        $this->assertCount(2, $result[0]['photos']);
+        // Terbaru dulu + path dipetakan ke URL storage publik
+        $this->assertStringContainsString('storage/report_photos/baru.jpg', $result[0]['photos'][0]['url']);
+        $this->assertEquals('sesudah', $result[0]['photos'][0]['caption']);
+        $this->assertStringContainsString('storage/report_photos/lama.jpg', $result[0]['photos'][1]['url']);
+    }
+
+    public function test_teknisi_tanpa_foto_dapat_array_kosong(): void
+    {
+        $this->buatTeknisiAktif();
+
+        $result = (new GetActiveTechnicianLocations)();
+
+        $this->assertSame([], $result[0]['photos']);
     }
 
     public function test_mengabaikan_laporan_yang_tidak_sedang_diperbaiki(): void

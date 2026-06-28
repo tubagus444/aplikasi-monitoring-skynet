@@ -8,6 +8,11 @@ new #[Layout('layouts.app')] class extends Component
 {
     public array $technicianLocations = [];
 
+    // Modal galeri foto bukti pekerjaan (dibuka dari strip thumbnail sidebar)
+    public bool $showPhotoModal = false;
+    public array $selectedPhotos = [];
+    public string $selectedTechName = '';
+
     public function mount(): void
     {
         $this->loadLocations();
@@ -17,6 +22,19 @@ new #[Layout('layouts.app')] class extends Component
     {
         $this->technicianLocations = (new GetActiveTechnicianLocations)();
         $this->dispatch('locations-updated', locations: $this->technicianLocations);
+    }
+
+    public function openPhotos(int $id): void
+    {
+        $tech = collect($this->technicianLocations)->firstWhere('id', $id);
+
+        if (! $tech || empty($tech['photos'])) {
+            return;
+        }
+
+        $this->selectedPhotos = $tech['photos'];
+        $this->selectedTechName = $tech['name'];
+        $this->showPhotoModal = true;
     }
 }; ?>
 
@@ -79,6 +97,26 @@ new #[Layout('layouts.app')] class extends Component
                                 @if($tech['last_update'])
                                     <p class="text-xs text-base-content/30 mt-1">{{ $tech['last_update'] }}</p>
                                 @endif
+
+                                {{-- Foto bukti pekerjaan terbaru — strip thumbnail, klik buka galeri.
+                                     stopPropagation agar tidak ikut memicu focus-technician (klik kartu). --}}
+                                @if(!empty($tech['photos']))
+                                    <div
+                                        class="flex items-center gap-1.5 mt-2"
+                                        x-on:click.stop="$wire.openPhotos({{ $tech['id'] }})"
+                                    >
+                                        @foreach(array_slice($tech['photos'], 0, 3) as $photo)
+                                            <img src="{{ $photo['url'] }}" alt="Foto bukti"
+                                                 class="w-9 h-9 rounded-lg object-cover border border-base-300" />
+                                        @endforeach
+                                        @if(count($tech['photos']) > 3)
+                                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-base-200 text-xs font-medium text-base-content/60 border border-base-300">
+                                                +{{ count($tech['photos']) - 3 }}
+                                            </span>
+                                        @endif
+                                        <span class="text-xs text-primary ml-0.5">Lihat foto</span>
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -94,6 +132,28 @@ new #[Layout('layouts.app')] class extends Component
         </div>
 
     </div>
+
+    {{-- Modal galeri foto bukti pekerjaan (teknisi yang sedang memperbaiki) --}}
+    <x-mary-modal wire:model="showPhotoModal" :title="'Foto Bukti — ' . $selectedTechName" separator box-class="max-w-3xl">
+        @if(empty($selectedPhotos))
+            <p class="text-sm text-base-content/50 py-6 text-center">Belum ada foto.</p>
+        @else
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                @foreach($selectedPhotos as $photo)
+                    <a href="{{ $photo['url'] }}" target="_blank" class="block">
+                        <img src="{{ $photo['url'] }}" alt="Foto bukti"
+                             class="w-full h-32 rounded-xl object-cover border border-base-300 hover:opacity-90 transition-opacity" />
+                        @if($photo['caption'])
+                            <p class="text-xs text-base-content/50 mt-1 truncate">{{ $photo['caption'] }}</p>
+                        @endif
+                    </a>
+                @endforeach
+            </div>
+        @endif
+        <x-slot:actions>
+            <x-mary-button label="Tutup" class="btn-ghost rounded-full" wire:click="$set('showPhotoModal', false)" />
+        </x-slot:actions>
+    </x-mary-modal>
 </div>
 
 @script

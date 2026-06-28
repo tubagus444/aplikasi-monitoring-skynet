@@ -31,11 +31,25 @@ class GetActiveTechnicianLocations
     private const STALE_AFTER_MINUTES = 5;
 
     /**
+     * Batas foto bukti yang disertakan per teknisi. Monitoring menampilkan
+     * progres terbaru, bukan seluruh arsip foto — galeri lengkap tetap di
+     * halaman Riwayat. Batas ini juga menjaga payload poll (10 detik) tetap
+     * ringan.
+     */
+    private const MAX_PHOTOS = 8;
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public function __invoke(): array
     {
-        $assignments = TaskAssignment::with(['technician', 'report.damageType'])
+        $assignments = TaskAssignment::with([
+            'technician',
+            'report.damageType',
+            // Foto bukti pekerjaan, terbaru dulu — dibatasi agar payload poll
+            // (tiap 10 detik) tetap ringan. Eager-load = tetap anti-N+1.
+            'report.photos' => fn ($q) => $q->latest('created_at')->limit(self::MAX_PHOTOS),
+        ])
             ->whereHas('report', fn ($q) => $q->where('status', ReportStatus::SedangMemperbaiki->value))
             ->get()
             ->unique('technician_id') // satu laporan aktif per teknisi (yang pertama)
@@ -78,6 +92,12 @@ class GetActiveTechnicianLocations
                 'is_stale'    => $latest?->recorded_at
                     ? $latest->recorded_at->lt(now()->subMinutes(self::STALE_AFTER_MINUTES))
                     : false,
+                // Foto bukti pekerjaan (terbaru dulu) untuk strip thumbnail di
+                // sidebar Monitoring; [] bila belum ada. path → asset('storage/..').
+                'photos'      => $assignment->report->photos->map(fn ($photo) => [
+                    'url'     => asset('storage/' . $photo->path),
+                    'caption' => $photo->caption,
+                ])->all(),
             ];
         })->all();
     }
