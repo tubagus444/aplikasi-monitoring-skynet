@@ -17,25 +17,27 @@ class ReportExportController extends Controller
     {
         \Carbon\Carbon::setLocale('id');
 
-        $search = $request->string('search')->trim()->value() ?: null;
-        $period = $request->string('period')->trim()->value() ?: null;
-        $mode   = $request->string('mode')->value() === 'lengkap' ? 'lengkap' : 'ringkasan';
+        $search   = $request->string('search')->trim()->value() ?: null;
+        $period   = $request->string('period')->trim()->value() ?: null;
+        $category = $request->string('category')->trim()->value() ?: null;
+        $mode     = $request->string('mode')->value() === 'lengkap' ? 'lengkap' : 'ringkasan';
 
         $reports = DamageReport::with([
                 'damageType',
                 'taskAssignments.technician',
                 'workLogs.technician',
             ])
-            ->riwayatSelesai($search, $period)
+            ->riwayatSelesai($search, $period, $category)
             ->get();
 
         $meta = [
-            'brand'       => 'SkyNet RT/RW Net',
-            'subtitle'    => 'Laporan Riwayat Perbaikan Jaringan — Kab. Bekasi',
+            'brand'        => 'SkyNet RT/RW Net',
+            'subtitle'     => 'Laporan Riwayat Perbaikan Jaringan — Kab. Bekasi',
             'periodeLabel' => $this->periodeLabel($period),
-            'search'      => $search,
-            'printedAt'   => now()->translatedFormat('d F Y, H:i'),
-            'total'       => $reports->count(),
+            'kategoriLabel' => $category ? \App\Enums\ReportCategory::from($category)->label() : 'Semua Kategori',
+            'search'       => $search,
+            'printedAt'    => now()->translatedFormat('d F Y, H:i'),
+            'total'        => $reports->count(),
         ];
 
         $view = $mode === 'lengkap' ? 'pdf.riwayat-lengkap' : 'pdf.riwayat-ringkasan';

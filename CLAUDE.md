@@ -12,6 +12,7 @@ Aplikasi web admin + Android untuk monitoring perbaikan jaringan. Studi kasus sk
 | CSS | Tailwind CSS v4 (CSS-first config) + DaisyUI v5 |
 | Build Tool | Vite v8 |
 | Peta | Leaflet.js + OpenStreetMap |
+| Grafik | Chart.js v4 (CDN, halaman Statistik) |
 | Auth API | Laravel Sanctum (token-based, untuk Android) |
 | Push Notification | Firebase FCM (`kreait/laravel-firebase v7`) |
 | Ekspor PDF | `barryvdh/laravel-dompdf` (dompdf) |
@@ -97,9 +98,10 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 1. Dashboard — stat cards data nyata + laporan terbaru
 2. Manajemen Laporan — full CRUD + filter + search + assign teknisi + **pemilih kategori** (pelanggan vs jaringan/pemeliharaan)
 3. Monitoring GPS — Leaflet.js realtime, polling 10 detik
-4. Riwayat — laporan selesai + filter periode + detail modal + **ekspor PDF** (mode ringkasan & lengkap)
+4. Riwayat — laporan selesai + filter periode + **filter kategori** + detail modal + **ekspor PDF** (mode ringkasan & lengkap, ikut filter kategori)
 5. Pengguna — full CRUD admin & teknisi
 6. Pelanggan — full CRUD + filter status + search + **detail** (galeri foto rumah + ringkasan + riwayat perbaikan per pelanggan) + **ekspor PDF & Excel**
+7. Statistik — analitik read-only: pecahan laporan per kategori, rata-rata durasi penanganan, **tren komplain 12 bulan (Chart.js)**, kinerja per teknisi, kerusakan tersering (top 5)
 
 ### Layar Android Teknisi (direncanakan 6 layar)
 
@@ -137,7 +139,8 @@ app/
                         # DamageReport: category (enum ReportCategory) + customer_id (FK nullOnDelete)
                         # + title; accessor $report->judul = customer_name ?? title (headline tabel/
                         # PDF/API, tak peduli kategori); snapshot customer_name/address tetap disimpan;
-                        # DamageReport: scope riwayatSelesai($search,$period);
+                        # DamageReport: scope riwayatSelesai($search,$period,$category)
+                        # ($category opsional = filter kategori, dipakai halaman Riwayat + ekspor PDF);
                         # kolom completed_at = sumber kebenaran WAKTU SELESAI
                         # (jangan pakai updated_at untuk waktu/durasi/filter selesai);
                         # $report->waktu_selesai (accessor) & ->durasiPenanganan($singkat)
@@ -163,7 +166,7 @@ app/
     NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
 routes/
   web.php               # Volt routes (admin panel) + history/export + customers/export/{pdf,excel}
-                        # + redirect `/`. Route ekspor pelanggan didaftar SEBELUM customers/{customer}
+                        # + statistik + redirect `/`. Route ekspor pelanggan didaftar SEBELUM customers/{customer}
   api.php               # 11 API endpoints (Android via Sanctum); /auth/login throttle:5,1
                         # + tasks/{id}/photos (bukti pekerjaan) & tasks/{id}/house-photos
                         # (foto rumah, Fase 2) — multipart, di-scope kepemilikan tugas
@@ -171,7 +174,9 @@ resources/views/livewire/pages/
   dashboard.blade.php
   laporan/index.blade.php   # form punya pemilih kategori + search-select pelanggan (x-choices-offline)
   monitoring.blade.php
-  riwayat.blade.php
+  riwayat.blade.php          # + filter kategori (chip) selain periode/search; ekspor ikut kategori
+  statistik.blade.php        # analitik read-only: pecahan kategori + rata-rata durasi + tren bulanan
+                             # (Chart.js via @script, canvas di wire:ignore) + kinerja teknisi + top kerusakan
   pengguna/index.blade.php
   pelanggan/index.blade.php  # CRUD pelanggan + filter status + search + ekspor PDF/Excel
   pelanggan/detail.blade.php # galeri foto rumah (upload/hapus) + ringkasan + riwayat perbaikan
@@ -203,10 +208,12 @@ tests/
                         # PelangganExportTest (ekspor PDF/Excel ikut scope filtered),
                         # RiwayatCategoryTest (judul/kategori di Riwayat + ekspor PDF non-pelanggan
                         # + modal detail tampilkan foto bukti pekerjaan)
+                        # StatistikTest (halaman Statistik: agregat kategori/kerusakan/kinerja teknisi
+                        # + format durasi + scope filter kategori riwayatSelesai)
                         # TaskTest juga menguji catatan pekerjaan (description) tersimpan & tampil di detail
                         # TaskPhotoTest (Api): unggah foto bukti & rumah — 201/validasi gambar/
                         # scope kepemilikan (404)/house-photos non-pelanggan ditolak (422)/repair_photos di detail
-                        # (94 test cases, semua pass — 39 API + 55 Web)
+                        # (100 test cases, semua pass — 39 API + 61 Web)
 ```
 
 ## Routes & Endpoint
@@ -237,6 +244,7 @@ tests/
 | Method | Path | Keterangan |
 |---|---|---|
 | GET | `/dashboard` | Ringkasan laporan per status + peta teknisi aktif |
+| GET | `/statistik` | Analitik: pecahan kategori + rata-rata durasi + tren bulanan (Chart.js) + kinerja teknisi + top kerusakan |
 
 > Posisi teknisi di peta dashboard di-refresh lewat **Livewire event** `map-data-refreshed`
 > (dispatch dari component, ditangkap `$wire.on(...)` di `@script`) — sama polanya dengan

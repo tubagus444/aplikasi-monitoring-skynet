@@ -27,6 +27,9 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        {{-- Chart.js untuk grafik halaman Statistik. Dimuat global (pola sama dgn Leaflet)
+             agar tersedia setelah wire:navigate sebelum @script halaman jalan. --}}
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     </head>
     <body class="font-sans antialiased">
 

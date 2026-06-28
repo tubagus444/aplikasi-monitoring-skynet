@@ -57,8 +57,11 @@
             <td class="label">Dicetak</td><td class="sep">:</td><td>{{ $meta['printedAt'] }}</td>
         </tr>
         <tr>
+            <td class="label">Kategori</td><td class="sep">:</td><td>{{ $meta['kategoriLabel'] }}</td>
             <td class="label">Pencarian</td><td class="sep">:</td><td>{{ $meta['search'] ?: '—' }}</td>
-            <td class="label">Total</td><td class="sep">:</td><td>{{ $meta['total'] }} laporan selesai</td>
+        </tr>
+        <tr>
+            <td class="label">Total</td><td class="sep">:</td><td colspan="4">{{ $meta['total'] }} laporan selesai</td>
         </tr>
     </table>
 @endsection

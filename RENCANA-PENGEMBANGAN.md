@@ -24,12 +24,12 @@
 
 1. [Modul Pelanggan (Customers)](#1-modul-pelanggan-customers) ✅ 📱 — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 2. [Catatan & bukti pekerjaan teknisi](#2-catatan--bukti-pekerjaan-teknisi) 📋 📱
-3. [Dashboard analitik & filter laporan](#3-dashboard-analitik--filter-laporan) 💡
+3. [Dashboard analitik & filter laporan](#3-dashboard-analitik--filter-laporan) ✅ — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 4. [Pendaftaran pelanggan oleh teknisi saat pemasangan baru](#4-pendaftaran-pelanggan-oleh-teknisi-saat-pemasangan-baru) 💡 📱
 5. [CRUD Jenis Kerusakan (damage_types)](#5-crud-jenis-kerusakan-damage_types) 📋
 6. [Metadata laporan: asal komplain & jadwal kunjungan](#6-metadata-laporan-asal-komplain--jadwal-kunjungan) 📋
 
-> **Urutan eksekusi yang disarankan:** ~~#1~~ ✅ → #2 → #3 → #4 (terakhir, menunggu dosen).
+> **Urutan eksekusi yang disarankan:** ~~#1~~ ✅ → #2 → ~~#3~~ ✅ → #4 (terakhir, menunggu dosen).
 > **#1 SUDAH SELESAI** (lihat Arsip) — fondasi `customers`/`ReportCategory` yang dirujuk #3 & #4
 > kini tersedia, jadi **#3a** (filter/pecahan per kategori) & **#4** tak lagi terblokir olehnya.
 > **#5** mandiri — bisa dikerjakan kapan saja (cocok jadi pemanasan). **#6** dulu diharapkan
@@ -355,10 +355,12 @@ Skema tabel `report_photos`:
 
 ---
 
-## 3. Dashboard analitik & filter laporan 💡
+## 3. Dashboard analitik & filter laporan ✅
 
-**Status:** 💡 Ide ringan — sebagian **bergantung pada Rencana #1 #9** (bagian per-kategori butuh
-kolom `category`); analitik umum (durasi/tren) bisa berdiri sendiri. Dicatat agar tidak lupa.
+**Status:** ✅ **SELESAI** (2026-06-28) — diimplementasi penuh (100 test pass). Ringkasan as-built
+ada di [Arsip](#arsip-rencana-yang-sudah-selesai) di bawah. Detail desain berikut dipertahankan
+sebagai **catatan historis**. Keputusan kecil yang dulu ditunda kini terkunci: **halaman Statistik
+tersendiri** (bukan menumpuk di dashboard) & **grafik pakai Chart.js via CDN** (pola sama Leaflet).
 
 ### Apa
 
@@ -472,6 +474,24 @@ perluasan ini diizinkan / perlu penyesuaian framing/judul — sebelum dieksekusi
 ---
 
 ## Arsip (rencana yang sudah selesai)
+
+### ✅ 3. Dashboard analitik & filter laporan — selesai 2026-06-28
+
+Memperkaya aplikasi dengan penyaringan kategori & analitik, **100 test pass**. Keputusan kecil yang
+dulu ditunda dikunci: **halaman "Statistik" tersendiri** (menu sidebar baru, dashboard tetap ringkas)
++ **Chart.js via CDN** (dimuat global di `layouts.app`, pola sama Leaflet). Yang terbangun:
+
+- **3a — Filter kategori:** `DamageReport::scopeRiwayatSelesai` dapat param ke-4 `$category` (opsional,
+  backward-compatible). Halaman Riwayat dapat baris `<x-filter-chips field="filterCategory">`
+  (trait `WithTableFilters` urus reset paginasi). Ekspor PDF ikut filter kategori
+  (`ReportExportController` baca `category`, tampil di kop meta `kategoriLabel`; template
+  `riwayat-ringkasan`/`riwayat-lengkap` dapat baris Kategori).
+- **3b — Halaman Statistik** (`resources/views/livewire/pages/statistik.blade.php`, route `statistik`):
+  pecahan laporan per kategori, rata-rata durasi penanganan (dihitung dari `completed_at`),
+  **tren komplain 12 bulan** (Chart.js line; canvas di `wire:ignore`, init via `@script`),
+  kinerja per teknisi (`withCount` task_assignments ditangani vs laporan selesai), kerusakan
+  tersering top 5 (`DamageType::withCount('damageReports')`). Semua query DB-agnostic (jalan di
+  MySQL & SQLite test). Menu sidebar "Statistik" + entri di `PageRenderTest`; `StatistikTest` baru.
 
 ### ✅ 1. Modul Pelanggan (Customers) — selesai 2026-06-27
 

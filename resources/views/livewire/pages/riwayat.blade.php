@@ -13,6 +13,7 @@ new #[Layout('layouts.app')] class extends Component
 
     public string $search = '';
     public string $filterPeriod = '';
+    public string $filterCategory = '';
 
     public bool $showDetailModal = false;
     public ?int $detailId = null;
@@ -21,7 +22,7 @@ new #[Layout('layouts.app')] class extends Component
     public function riwayat()
     {
         return DamageReport::with(['damageType', 'taskAssignments.technician'])
-            ->riwayatSelesai($this->search, $this->filterPeriod)
+            ->riwayatSelesai($this->search, $this->filterPeriod, $this->filterCategory)
             ->paginate(10);
     }
 
@@ -57,7 +58,7 @@ new #[Layout('layouts.app')] class extends Component
             <x-dropdown label="Ekspor PDF" icon="o-document-arrow-down" class="btn-primary btn-sm rounded-full" right>
                 <li>
                     <a
-                        href="{{ route('history.export', ['mode' => 'ringkasan', 'search' => $search, 'period' => $filterPeriod]) }}"
+                        href="{{ route('history.export', ['mode' => 'ringkasan', 'search' => $search, 'period' => $filterPeriod, 'category' => $filterCategory]) }}"
                         target="_blank"
                         class="flex items-center gap-2"
                     >
@@ -66,7 +67,7 @@ new #[Layout('layouts.app')] class extends Component
                 </li>
                 <li>
                     <a
-                        href="{{ route('history.export', ['mode' => 'lengkap', 'search' => $search, 'period' => $filterPeriod]) }}"
+                        href="{{ route('history.export', ['mode' => 'lengkap', 'search' => $search, 'period' => $filterPeriod, 'category' => $filterCategory]) }}"
                         target="_blank"
                         class="flex items-center gap-2"
                         @if($this->riwayat->total() > 30)
@@ -92,6 +93,11 @@ new #[Layout('layouts.app')] class extends Component
             :options="['' => 'Semua', 'minggu' => 'Minggu Ini', 'bulan' => 'Bulan Ini']"
             field="filterPeriod"
             :selected="$filterPeriod"
+        />
+        <x-filter-chips
+            :options="['' => 'Semua Kategori'] + \App\Enums\ReportCategory::options()"
+            field="filterCategory"
+            :selected="$filterCategory"
         />
         <span class="text-xs text-base-content/40 self-center ml-auto">
             {{ $this->riwayat->total() }} laporan selesai

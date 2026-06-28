@@ -32,10 +32,10 @@ class DamageReport extends Model
     }
 
     /**
-     * Riwayat laporan yang sudah selesai, dengan filter pencarian & periode.
+     * Riwayat laporan yang sudah selesai, dengan filter pencarian, periode & kategori.
      * Dipakai bersama oleh halaman Riwayat (Volt) dan ekspor PDF agar konsisten.
      */
-    public function scopeRiwayatSelesai(Builder $query, ?string $search = null, ?string $period = null): Builder
+    public function scopeRiwayatSelesai(Builder $query, ?string $search = null, ?string $period = null, ?string $category = null): Builder
     {
         return $query->where('status', ReportStatus::Selesai->value)
             ->when($search, fn ($q) => $q->where(fn ($w) =>
@@ -43,6 +43,7 @@ class DamageReport extends Model
                   ->orWhere('address', 'like', "%{$search}%")
                   ->orWhere('title', 'like', "%{$search}%")
             ))
+            ->when($category, fn ($q) => $q->where('category', $category))
             ->when($period === 'minggu', fn ($q) =>
                 $q->whereBetween('completed_at', [now()->startOfWeek(), now()->endOfWeek()])
             )

@@ -13,6 +13,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('monitoring', 'pages.monitoring')->name('monitoring');
     Volt::route('history', 'pages.riwayat')->name('history');
     Route::get('history/export', [ReportExportController::class, 'riwayat'])->name('history.export');
+    Volt::route('statistik', 'pages.statistik')->name('statistik');
     Volt::route('customers', 'pages.pelanggan.index')->name('customers.index');
     Route::get('customers/export/pdf', [CustomerExportController::class, 'pdf'])->name('customers.export.pdf');
     Route::get('customers/export/excel', [CustomerExportController::class, 'excel'])->name('customers.export.excel');
