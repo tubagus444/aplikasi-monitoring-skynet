@@ -1,4 +1,4 @@
-# Panduan Belajar: Aplikasi Monitoring Perbaikan Jaringan
+# Alur Aplikasi: Monitoring Perbaikan Jaringan
 
 > Dokumen ini dibuat untuk membantu kamu memahami **bagaimana aplikasimu sendiri bekerja**,
 > dari sudut pandang "ini kodenya, ini yang terjadi di balik layar."
@@ -30,7 +30,9 @@
 17. [Komponen & Trait Reusable Panel Admin](#17-komponen--trait-reusable-panel-admin)
 18. [Tailwind v4 + DaisyUI: Konfigurasi CSS-First](#18-tailwind-v4--daisyui-konfigurasi-css-first)
 19. [Ringkasan Alur Per Fitur](#19-ringkasan-alur-per-fitur)
-20. [Tips Belajar Selanjutnya](#20-tips-belajar-selanjutnya)
+20. [Struktur Direktori Penting](#20-struktur-direktori-penting)
+21. [Konfigurasi Lingkungan (.env)](#21-konfigurasi-lingkungan-env)
+22. [Tips Belajar Selanjutnya](#22-tips-belajar-selanjutnya)
 
 ---
 
@@ -809,7 +811,32 @@ POST /api/tasks/{id}/status { status: "in_progress" }
 
 ---
 
-## 20. Tips Belajar Selanjutnya
+## 20. Struktur Direktori Penting
+
+Untuk memudahkan navigasi, berikut adalah struktur folder utama dalam proyek ini:
+
+- `app/Actions/`: Berisi logika bisnis kompleks (seperti sinkronisasi teknisi).
+- `app/Enums/`: Kumpulan enum yang menjadi *single source of truth* (`ReportStatus`, `UserRole`).
+- `app/Http/Controllers/`: Controller tradisional dan API Controller (Sanctum).
+- `app/Livewire/` atau `resources/views/livewire/pages/`: Tempat komponen Livewire Volt dan halaman interaktif.
+- `app/Models/`: Model database (`User`, `DamageReport`, dll.).
+- `app/Observers/`: Observer seperti `NotificationObserver` untuk push notifikasi otomatis.
+- `routes/`: File rute (web, api, console).
+- `resources/views/`: Berisi layout utama, komponen blade UI, template PDF, dan file Volt.
+
+---
+
+## 21. Konfigurasi Lingkungan (.env)
+
+Agar aplikasi dapat berjalan sepenuhnya (terutama fitur Android & Notifikasi), pastikan `.env` terkonfigurasi:
+
+- **Database**: Pastikan kredensial DB sesuai (`DB_CONNECTION=mysql`, `DB_DATABASE=...`).
+- **Sanctum**: `SANCTUM_STATEFUL_DOMAINS` perlu diatur jika menggunakan otentikasi SPA, walau di sini lebih dominan Token via API.
+- **Firebase/FCM**: Jika push notifikasi diaktifkan, diperlukan kredensial Firebase Cloud Messaging (seringkali melalui variabel seperti `FCM_SERVER_KEY` atau file JSON service account yang harus ditunjuk dari `.env`).
+
+---
+
+## 22. Tips Belajar Selanjutnya
 
 1. **Baca migrations** di `database/migrations/` — file ini menjelaskan struktur tabel persis
    seperti dibuat (kolom, tipe, default, dan aturan foreign key seperti `nullOnDelete`/`cascade`).

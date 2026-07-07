@@ -29,6 +29,7 @@
 5. [CRUD Jenis Kerusakan (damage_types)](#5-crud-jenis-kerusakan-damage_types) ✅ — **Selesai** (ringkasan di [Arsip](#arsip-rencana-yang-sudah-selesai))
 6. [Metadata laporan: asal komplain & jadwal kunjungan](#6-metadata-laporan-asal-komplain--jadwal-kunjungan) 📋
 7. [Peningkatan peta Monitoring & Dashboard](#7-peningkatan-peta-monitoring--dashboard) 🔨 — opsi A & C ✅ + foto bukti live ✅, B menyusul
+8. [Audit log aktivitas admin](#8-audit-log-aktivitas-admin) 📋
 
 > **Urutan eksekusi yang disarankan:** ~~#1~~ ✅ → ~~#2~~ ✅ → ~~#3~~ ✅ → #4 (terakhir, menunggu dosen).
 > **#1 SUDAH SELESAI** (lihat Arsip) — fondasi `customers`/`ReportCategory` yang dirujuk #3 & #4
@@ -710,6 +711,153 @@ memutuskan ini layak dikerjakan.
 **A → C → B** (cepat & kentara dulu; trail terakhir karena paling banyak kerja & terikat retensi
 data). Polling 10 detik = full Livewire round-trip; untuk skala SkyNet biarkan apa adanya, jangan
 over-engineer jadi WebSocket.
+
+---
+
+## 8. Audit log aktivitas admin 📋
+
+**Status:** 📋 Direncanakan — keputusan desain **dikunci 2026-06-28** (lihat di bawah), belum mulai
+koding. Mandiri (tak bergantung rencana lain), bisa dikerjakan kapan saja.
+
+### Latar belakang
+
+Aplikasi mencatat **pekerjaan teknisi** (`work_logs`, `location_logs`, foto bukti) tapi **tidak**
+mencatat **aksi admin** di panel web. Bila sebuah laporan diubah, pelanggan dihapus, atau penugasan
+teknisi dibatalkan, **tak ada jejak siapa & kapan** — padahal beberapa aksi tak terbalikkan dan FK
+`nullOnDelete`/snapshot sengaja menjaga arsip. Pertanyaan penguji klasik soal **akuntabilitas &
+integritas data** ("kalau data salah/hilang, siapa yang mengubah?") saat ini tak terjawab oleh sistem.
+
+Rencana ini menambahkan **audit log menyeluruh** — bukan sekadar satu modul, melainkan **semua
+perubahan data lintas seluruh entitas admin** + autentikasi — yang tampil di satu halaman "Log
+Aktivitas" yang bisa dibaca, dicari, dan difilter admin. Mengangkat catatan minor di
+[`CATATAN-FITUR.md` #10](CATATAN-FITUR.md) menjadi fitur utuh.
+
+### Keputusan yang sudah dikunci
+
+1. **Cakupan aktor = admin web + autentikasi.** Yang dicatat: semua perubahan data yang dilakukan
+   admin lewat panel web (laporan, pelanggan, pengguna, jenis gangguan, foto rumah, penugasan
+   teknisi) + peristiwa **login / login gagal / logout**. **Aksi teknisi via API Sanctum TIDAK
+   dicatat** di sini — sudah terekam di `work_logs`/`location_logs`/foto bukti. (Mencegah audit log
+   membanjir oleh ping GPS & menjaga maknanya "siapa admin mengubah apa".)
+2. **Hanya perubahan data + auth, BUKAN page-view.** Membuka/melihat halaman tidak dicatat — log
+   tetap ringkas & bermakna, fokus ke _apa yang berubah_. "Semua aktivitas" di sini = semua
+   **perubahan** lintas entitas, bukan setiap navigasi.
+3. **Pakai paket `spatie/laravel-activitylog`** (bukan tabel/observer custom). Battle-tested,
+   menangkap **diff lama→baru** otomatis lewat trait `LogsActivity` per model (satu baris konfigurasi
+   per model — itulah yang membuat "semua entitas" murah & tak ada yang lolos), satu tabel
+   `activity_log`. Konsisten dengan pola proyek memakai paket pihak ketiga (`dompdf`, `maatwebsite/excel`,
+   `kreait/firebase`).
+4. **Audit log = read-only & append-only.** Halaman "Log Aktivitas" hanya menampilkan — **tanpa**
+   tombol edit/hapus (integritas audit; log yang bisa diutak-atik tak ada gunanya). Tabel tak pernah
+   ditulis dari UI, hanya oleh sistem.
+5. **Data sensitif tak ikut tercatat.** Perubahan kolom `password`, `remember_token`, `fcm_token`
+   pada `users` **dikecualikan** dari diff (`logExcept`). Audit mencatat _bahwa_ akun diubah, bukan
+   isi rahasianya.
+
+### Apa yang dicatat (lintas entitas)
+
+| Entitas (model)             | Aksi tercatat                 | Titik picu (sudah pakai operasi level-model → event Eloquent jalan) |
+| --------------------------- | ----------------------------- | ------------------------------------------------------------------- |
+| `DamageReport`              | dibuat / diperbarui / dihapus | [laporan/index.blade.php](resources/views/livewire/pages/laporan/index.blade.php) `save()`/`delete()` |
+| `Customer`                  | dibuat / diperbarui / dihapus | [pelanggan/index.blade.php](resources/views/livewire/pages/pelanggan/index.blade.php) |
+| `User`                      | dibuat / diperbarui / dihapus | [pengguna/index.blade.php](resources/views/livewire/pages/pengguna/index.blade.php) (kecuali field rahasia) |
+| `DamageType`                | dibuat / diperbarui / dihapus | [jenis-gangguan/index.blade.php](resources/views/livewire/pages/jenis-gangguan/index.blade.php) |
+| `CustomerPhoto`             | ditambah / dihapus (oleh admin) | [pelanggan/detail.blade.php](resources/views/livewire/pages/pelanggan/detail.blade.php) |
+| Penugasan teknisi           | ditugaskan / dibatalkan       | [SyncReportTechnicians](app/Actions/SyncReportTechnicians.php) — **lihat titik buta di bawah** |
+| Autentikasi (events Laravel) | login / login gagal / logout  | `LoginForm::authenticate` (`Auth::attempt`) & `Logout` action |
+
+> **Tiap entri menyimpan:** aktor (admin penyebab, otomatis dari user login), aksi
+> (created/updated/deleted/login/…), objek (jenis model + identitasnya), ringkas perubahan
+> (diff lama→baru, JSON `properties`), dan waktu. **Opsional:** IP + user-agent ke `properties`.
+
+### ⚠️ Titik buta yang wajib ditangani
+
+Trait `LogsActivity` menangkap **event Eloquent** (`created`/`updated`/`deleted`). Operasi
+**query-builder massal melewati event** sehingga tak tertangkap otomatis:
+
+- **Pembatalan penugasan** di [SyncReportTechnicians.php](app/Actions/SyncReportTechnicians.php#L36-L39)
+  memakai `->whereIn('technician_id', $toRemove)->delete()` (bulk) — **tidak** memicu event.
+  Penambahan (`TaskAssignment::create()`) memicu event, pembatalan tidak. **Solusi:** catat
+  penugasan/pembatalan **secara eksplisit di Action** sebagai satu entri semantik yang terbaca
+  (mis. _"Menugaskan teknisi Budi ke laporan #12"_ / _"Membatalkan penugasan teknisi Budi dari
+  laporan #12"_) — lebih bermakna daripada baris `task_assignments` mentah. (Karena dicatat manual
+  di Action, `TaskAssignment` **tidak** perlu trait `LogsActivity`, menghindari entri ganda.)
+- Aturan umum ke depan: aksi admin baru harus pakai operasi **level-model** (atau `activity()` manual)
+  agar tetap terekam.
+
+### Membatasi ke konteks web admin
+
+Agar aksi teknisi via API tidak ikut tercatat (keputusan #1) — mis.
+`TaskController::updateStatus` yang memanggil `$report->update(...)` — **logging dinonaktifkan untuk
+grup route `/api`** (mis. middleware yang menyetel `config(['activitylog.enabled' => false])` untuk
+request API; mekanisme persis diverifikasi saat implementasi). Dengan begitu trait di `DamageReport`
+dkk. hanya aktif pada request web admin. Penyebab (causer) diambil otomatis dari user login web.
+
+### Skema (tabel `activity_log` dari paket)
+
+Migrasi bawaan `spatie/laravel-activitylog` membuat tabel **`activity_log`** (jadi total tabel
+**13 → 14**): kolom kunci `log_name`, `description`, `event`, `subject_type`/`subject_id` (objek),
+`causer_type`/`causer_id` (aktor), `properties` (JSON diff + IP opsional), `created_at`. Tak perlu
+skema buatan sendiri.
+
+### Tampilan — halaman "Log Aktivitas"
+
+Halaman Volt baru (admin), ikut bahasa visual & komponen seragam yang sudah ada:
+
+- Route `Volt::route('activity-log', 'pages.aktivitas.index')->name('activity.index')` di grup
+  `['auth']`; menu sidebar baru "Log Aktivitas" (`icon="o-clipboard-document-list"`).
+- `<x-table-card>` read-only (tanpa aksi edit/hapus): kolom **Waktu · Aktor · Aksi · Objek ·
+  Perubahan**. Aksi sebagai **pil warna** (pola `<x-status-pill>`): dibuat=success, diperbarui=info,
+  dihapus=error, login=primary, login gagal=warning, logout=secondary.
+- **Filter** lewat trait `WithTableFilters` + `<x-filter-chips>`: pencarian (deskripsi/aktor) +
+  filter **jenis aksi** + filter **jenis objek** (laporan/pelanggan/pengguna/…) + opsional periode.
+  Semua `rounded-full` sesuai bahasa visual.
+- **Modal detail** menampilkan diff **lama → baru** per kolom (dari `properties`), + IP/waktu.
+
+### Rencana implementasi (langkah)
+
+1. `composer require spatie/laravel-activitylog`; publish config + migrasi; `php artisan migrate`
+   (buat tabel `activity_log`).
+2. Tambah trait `LogsActivity` + `getActivitylogOptions()` ke 5 model admin (`DamageReport`,
+   `Customer`, `User`, `DamageType`, `CustomerPhoto`): `logOnlyDirty()` + `dontSubmitEmptyLogs()` +
+   deskripsi Indonesia (dibuat/diperbarui/dihapus). **`User` wajib `logExcept(['password',
+   'remember_token', 'fcm_token'])`.**
+3. Tangani titik buta penugasan: catat assign/unassign **manual via `activity()`** di
+   [SyncReportTechnicians](app/Actions/SyncReportTechnicians.php) (entri semantik terbaca). Jangan
+   pasang trait di `TaskAssignment` (hindari entri ganda).
+4. Listener auth: tangkap event `Login` / `Failed` / `Logout` Laravel → `activity()->log(...)`
+   (login gagal catat email yang dicoba + IP). Daftarkan di provider event.
+5. Nonaktifkan logging untuk grup route `/api` (middleware) → aksi teknisi tak tercatat.
+6. (Opsional) Rekam **IP + user-agent** ke `properties` tiap entri (global tap / custom Activity model).
+7. Halaman `pages/aktivitas/index.blade.php` + route + menu sidebar; `<x-table-card>` read-only +
+   filter (`WithTableFilters`, `<x-filter-chips>`) + modal diff. **Tanpa** aksi tulis.
+8. (Opsional) Retensi: `php artisan activitylog:clean` (paket menyediakannya; `delete_records_older_than_days`,
+   default 365) — catat di [`CATATAN-FITUR.md`](CATATAN-FITUR.md) seperti cleanup `location_logs`,
+   jadwalkan saat deploy VPS. Volume jauh lebih kecil dari GPS → tak mendesak.
+9. Test `ActivityLogTest`: CRUD laporan → 1 entri (event & causer benar); **ubah password user →
+   tak bocor** ke `properties`; pembatalan penugasan tercatat; login/login-gagal/logout tercatat;
+   **mutasi via API teknisi TIDAK tercatat**; halaman render & **read-only** (tak ada jalur tulis).
+   Tambah entri `PageRenderTest`.
+10. Update [`CLAUDE.md`](CLAUDE.md): tabel **13 → 14** (`activity_log`), paket baru
+    `spatie/laravel-activitylog` di tabel stack, menu "Log Aktivitas" + route, dokumentasi konvensi
+    audit (read-only, admin-only, field sensitif dikecualikan, titik buta bulk-op); lalu pindahkan
+    rencana ini ke Arsip.
+
+### Dampak API Android 📱
+
+**Nol.** Aksi teknisi via API sengaja **tidak** dicatat (keputusan #1) — tak ada perubahan kontrak
+atau perilaku Android. Murni fitur web admin.
+
+### Catatan / risiko
+
+- **Kebocoran data sensitif** = risiko utama → `logExcept` password/token **wajib**, diuji eksplisit.
+- **Append-only tumbuh** seiring waktu, tapi volume aksi admin jauh di bawah GPS — retensi opsional,
+  bukan blocker.
+- **Operasi massal melewati event** (titik buta penugasan di atas) — sudah dienumerasi; jaga aturan
+  "aksi admin baru pakai operasi level-model atau `activity()` manual".
+- **Causer kosong** untuk aksi sistem/seeder (bukan admin) — tampil "Sistem", wajar.
+- **Nilai untuk skripsi:** jawaban konkret untuk pertanyaan akuntabilitas/integritas data —
+  melengkapi pola `nullOnDelete`/snapshot yang sudah ada dengan **jejak siapa-kapan**.
 
 ---
 
