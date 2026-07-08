@@ -285,6 +285,21 @@ new #[Layout('layouts.app')] class extends Component {
 - **`wire:click="method"`** = memanggil method PHP saat diklik.
 - **`wire:poll.10s="method"`** = panggil method tiap 10 detik otomatis (dipakai di Monitoring).
 
+### Validasi Form & Error Handling
+
+Untuk memvalidasi input dari admin (saat membuat laporan atau pengguna baru), aplikasi ini mengandalkan fitur bawaan Livewire menggunakan *Attribute* `#[Validate]`.
+Contoh di file komponen:
+```php
+use Livewire\Attributes\Validate;
+
+#[Validate('required|min:5')]
+public string $nama = '';
+```
+Saat method aksi dijalankan (contoh: `simpan()`), panggil `$this->validate()`. Jika input tidak memenuhi syarat, proses akan langsung berhenti dan pesan error dikembalikan ke browser (tanpa perlu *try/catch* manual).
+
+Kehebatan dari paduan Livewire + **Mary UI** adalah: **kamu tidak perlu menulis kode HTML secara manual untuk memunculkan teks error merah muda di setiap bawah input.**
+Komponen `<x-mary-input>` dan `<x-mary-select>` sudah secara pintar mendeteksi error validasi dari propertinya (`wire:model`) dan otomatis membuat kotak input menjadi merah beserta teks errornya.
+
 > File halaman ada di `resources/views/livewire/pages/`. Layout pembungkus (sidebar + topbar)
 > ada di `layouts.app`.
 
@@ -566,6 +581,13 @@ Dua hal kecil yang sengaja dirancang:
   tersimpan dan alur penugasan tidak ikut gagal.
 
 Observer ini didaftarkan di [app/Providers/AppServiceProvider.php](app/Providers/AppServiceProvider.php).
+
+### Mengapa Membutuhkan Queue (Antrean)?
+
+Pengiriman push notification ke Firebase membutuhkan koneksi internet (HTTP Request) yang memakan waktu (bisa 1-3 detik). Jika ini dilakukan secara *synchronous* (menunggu selesai), maka saat admin mengklik "Simpan Penugasan", web akan *loading* lama menungggu respon dari Firebase.
+
+Oleh karena itu, pengiriman pesan FCM di aplikasi ini **dilempar ke antrean (Queue) di *background***. Admin bisa langsung mendapat pesan sukses "Berhasil ditugaskan" tanpa harus menunggu Firebase selesai bekerja. 
+Itulah sebabnya kita **wajib menyalakan queue worker** (lewat `php artisan queue:listen` atau menggunakan perintah `composer dev:mobile` yang sudah kita bahas) agar ada proses di belakang layar yang bertugas mengirimkan antrean pesan tersebut ke Firebase.
 
 ---
 

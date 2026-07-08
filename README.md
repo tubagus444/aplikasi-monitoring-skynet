@@ -65,79 +65,90 @@ Ditugaskan ──► Sedang Memperbaiki (GPS aktif) ──► Selesai (GPS berhe
 ```
 
 Kedua sisi mengakses database yang sama; perbedaannya hanya pada cara autentikasi.
-Penjelasan cara kerja end-to-end ada di [BELAJAR.md](BELAJAR.md).
+Penjelasan cara kerja end-to-end ada di [ALUR_APLIKASI.md](ALUR_APLIKASI.md).
 
 ---
 
 ## 🚀 Instalasi & Menjalankan (Lokal / Laragon)
 
-### Prasyarat
-- PHP **8.3+**, Composer
-- Node.js 20+ & npm
-- MySQL (disarankan via **Laragon**)
+### 1. Prasyarat Sistem
+Pastikan sistem Anda sudah terinstal perangkat lunak berikut:
+- **PHP 8.3+** dan **Composer**
+- **Node.js 20+** dan **npm**
+- **MySQL** (Sangat disarankan menggunakan **Laragon** untuk lingkungan Windows)
 
-### Langkah
+### 2. Langkah Instalasi
 
+**Clone & Install Dependencies**
 ```bash
-# 1. Install dependency PHP
+# Clone repositori (jika belum)
+# git clone <url-repo> && cd Aplikasi-Monitoring
+
+# Install dependency PHP (Backend)
 composer install
 
-# 2. Salin file environment lalu generate APP_KEY
-cp .env.example .env        # Windows (PowerShell): Copy-Item .env.example .env
-php artisan key:generate
-```
-
-`.env.example` sudah memakai konfigurasi proyek yang benar (**MySQL** `aplikasi_monitoring`
-+ `SESSION_DRIVER=file`), jadi setelah disalin biasanya **tidak perlu** diubah. Sesuaikan hanya
-bila berbeda dari default:
-
-```dotenv
-DB_USERNAME=root
-DB_PASSWORD=            # isi bila MySQL Anda memakai password
-
-# Wajib untuk push notification Android (path ke service account JSON Firebase).
-# File JSON JANGAN di-commit (sudah ada di .gitignore). Boleh dikosongkan saat dev.
-FIREBASE_CREDENTIALS=
-```
-
-```bash
-# 3. Siapkan database "aplikasi_monitoring" + isi data contoh (akun demo, jenis kerusakan, dll.)
-#    Jika database belum dibuat, perintah ini akan menawarkan membuatkannya otomatis (jawab "yes").
-php artisan migrate
-#    Alternatif: buat manual lebih dulu via HeidiSQL / Laragon, lalu jalankan perintah di bawah.
-php artisan migrate --seed
-
-# 4. Install dependency frontend
+# Install dependency Node.js (Frontend)
 npm install
 ```
 
-**5. Jalankan aplikasi.** Cara termudah — satu perintah menjalankan semua service
-(server + queue + Vite):
+**Konfigurasi Environment**
+```bash
+# Salin file konfigurasi (Windows PowerShell: Copy-Item .env.example .env)
+cp .env.example .env
+
+# Generate APP_KEY
+php artisan key:generate
+```
+
+> 💡 File `.env.example` sudah dikonfigurasi untuk database `aplikasi_monitoring` dengan `SESSION_DRIVER=file`. Anda hanya perlu menyesuaikan `DB_USERNAME` dan `DB_PASSWORD` jika berbeda dari bawaan Laragon (biasanya root / dikosongkan).
+> 
+> 🔑 **Konfigurasi Firebase (Opsional untuk Dev):** Isi `FIREBASE_CREDENTIALS` di file `.env` dengan path ke file JSON service account untuk mengaktifkan notifikasi push ke Android. Kosongkan saja jika belum perlu (error FCM akan ditangkap otomatis).
+
+**Setup Database**
+Pastikan service MySQL di Laragon sudah berjalan.
+```bash
+# Jalankan migrasi dan isi data awal (seeder)
+# Jika database "aplikasi_monitoring" belum ada, akan ditawarkan untuk dibuat otomatis
+php artisan migrate --seed
+```
+
+### 3. Menjalankan Aplikasi
+
+Cara paling praktis untuk menjalankan aplikasi beserta semua servicenya (Web Server, Vite HMR, dan Queue Worker) adalah dengan satu perintah:
 
 ```bash
 composer dev
 ```
 
-> ⚠️ `composer dev` butuh `composer` ada di PATH. Bila terminal Anda tidak mengenali `composer`
-> (mis. Git Bash / terminal VS Code), jalankan dari **Terminal Laragon**, atau pakai perintah
-> setara tanpa composer:
+> 📱 **Pengujian dengan HP Fisik (Android):** Jika Anda ingin menghubungkan aplikasi Android di HP fisik (bukan emulator) ke backend lokal ini, gunakan perintah berikut:
 > ```bash
-> npx concurrently "php artisan serve" "php artisan queue:listen --tries=1" "npm run dev"
+> composer dev:mobile
 > ```
-> Alternatif paling sederhana (cukup untuk lihat UI & login, tanpa queue worker):
-> jalankan `npm run dev` dan `php artisan serve` di dua terminal terpisah.
+> Perintah ini akan menjalankan server di `--host=0.0.0.0` sehingga dapat diakses oleh jaringan lokal.
+> **Langkah Menyambungkan:**
+> 1. Cek IP lokal komputer/laptop Anda (misal `192.168.0.105`).
+> 2. Di HP fisik, buka browser dan akses `http://192.168.0.105:8000`. Jika halaman web tampil, berarti koneksi berhasil (tidak diblokir firewall).
+> 3. Buka aplikasi Android, pada **halaman Login**, buka menu **Konfigurasi API** dan masukkan URL tersebut (contoh: `http://192.168.0.105:8000/api/`).
 
-> 🪟 **Catatan Windows:** log viewer `php artisan pail` sengaja **tidak** disertakan karena butuh
-> ekstensi `pcntl` yang tidak tersedia di Windows. Untuk melihat log, baca langsung
-> `storage/logs/laravel.log`.
+Jika perintah `composer` di atas tidak berjalan (misal `composer` tidak ada di PATH terminal Anda), Anda bisa menjalankannya secara manual di terminal/tab yang terpisah:
+1. **Web Server:** `php artisan serve` *(Gunakan `php artisan serve --host=0.0.0.0 --port=8000` jika untuk pengujian HP fisik)*
+2. **Queue (Notifikasi):** `php artisan queue:listen --tries=1`
+3. **Vite (Frontend):** `npm run dev`
 
-> 💡 Saat **development** pakai `npm run dev` (Vite hot-reload, sudah termasuk di atas) — **bukan**
-> `npm run build`. `npm run build` hanya untuk **produksi** (mengompilasi aset jadi file statis).
+Atau jika ingin satu perintah menggunakan `npx concurrently`:
+```bash
+# Default (Lokal saja)
+npx concurrently "php artisan serve" "php artisan queue:listen --tries=1" "npm run dev"
 
-Buka **http://localhost:8000** lalu login sebagai admin (lihat akun demo di bawah).
+# Untuk Pengujian HP Fisik
+npx concurrently "php artisan serve --host=0.0.0.0 --port=8000" "php artisan queue:listen --tries=1" "npm run dev"
+```
 
-> **Firebase opsional saat dev:** bila `FIREBASE_CREDENTIALS` belum diisi, pengiriman FCM gagal
-> diam-diam (`try/catch` + log) dan **tidak** menghentikan alur — notifikasi tetap tersimpan di DB.
+### 4. Akses Aplikasi
+- Buka browser dan akses **http://localhost:8000**
+- Login menggunakan akun Admin yang tersedia di bagian [Akun Demo](#-akun-demo-dari-seeder) di bawah.
+
+> 🪟 **Catatan untuk pengguna Windows:** Perintah `php artisan pail` (log viewer) tidak dapat digunakan karena membutuhkan ekstensi `pcntl`. Silakan cek error log secara langsung di `storage/logs/laravel.log`.
 
 ---
 
@@ -170,7 +181,7 @@ Cakupan test ada di `tests/Feature/Api/` (endpoint Android) dan `tests/Feature/W
 | Dokumen | Isi |
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | Acuan teknis lengkap: struktur, routes, konvensi kode & UI, pola Volt/Leaflet/PDF |
-| [BELAJAR.md](BELAJAR.md) | Panduan belajar — penjelasan *cara kerja* aplikasi dari ujung ke ujung |
+| [ALUR_APLIKASI.md](ALUR_APLIKASI.md) | Panduan belajar — penjelasan *cara kerja* aplikasi dari ujung ke ujung |
 | [CLAUDE_ANDROID.md](CLAUDE_ANDROID.md) | **Kontrak API** backend untuk klien Android (request/response tiap endpoint) |
 | [CATATAN-FITUR.md](CATATAN-FITUR.md) | Backlog ide pengembangan & rencana deploy (shared hosting / VPS) |
 
@@ -180,7 +191,7 @@ Cakupan test ada di `tests/Feature/Api/` (endpoint Android) dan `tests/Feature/W
 
 10 tabel utama. Inti alurnya: `damage_reports` (laporan) ⇄ `task_assignments` (penugasan
 teknisi) ⇄ `users`; jejak pekerjaan di `work_logs`, jejak GPS di `location_logs`, push di
-`notifications`. Detail relasi & aturan foreign key ada di [BELAJAR.md](BELAJAR.md) Bab 3.
+`notifications`. Detail relasi & aturan foreign key ada di [ALUR_APLIKASI.md](ALUR_APLIKASI.md) Bab 3.
 
 | Tabel | Keterangan |
 |---|---|
