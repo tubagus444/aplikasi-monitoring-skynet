@@ -181,6 +181,7 @@ Cakupan test ada di `tests/Feature/Api/` (endpoint Android) dan `tests/Feature/W
 | Dokumen | Isi |
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | Acuan teknis lengkap: struktur, routes, konvensi kode & UI, pola Volt/Leaflet/PDF |
+| [DATABASE.md](DATABASE.md) | **Skema database** lengkap per kolom: tipe data, PK/FK, constraint, logika bisnis |
 | [ALUR_APLIKASI.md](ALUR_APLIKASI.md) | Panduan belajar — penjelasan *cara kerja* aplikasi dari ujung ke ujung |
 | [CLAUDE_ANDROID.md](CLAUDE_ANDROID.md) | **Kontrak API** backend untuk klien Android (request/response tiap endpoint) |
 | [CATATAN-FITUR.md](CATATAN-FITUR.md) | Backlog ide pengembangan & rencana deploy (shared hosting / VPS) |
@@ -189,21 +190,25 @@ Cakupan test ada di `tests/Feature/Api/` (endpoint Android) dan `tests/Feature/W
 
 ## 🗄️ Struktur Database (ringkas)
 
-10 tabel utama. Inti alurnya: `damage_reports` (laporan) ⇄ `task_assignments` (penugasan
+16 tabel. Inti alurnya: `damage_reports` (laporan) ⇄ `task_assignments` (penugasan
 teknisi) ⇄ `users`; jejak pekerjaan di `work_logs`, jejak GPS di `location_logs`, push di
-`notifications`. Detail relasi & aturan foreign key ada di [ALUR_APLIKASI.md](ALUR_APLIKASI.md) Bab 3.
+`notifications`. **Dokumentasi lengkap per kolom** (tipe data, FK, constraint, logika bisnis) ada di [DATABASE.md](DATABASE.md).
 
 | Tabel | Keterangan |
 |---|---|
 | `users` | Admin & teknisi |
-| `damage_types` | Jenis kerusakan jaringan |
+| `customers` | Pelanggan (entitas tersendiri) |
+| `customer_photos` | Foto rumah pelanggan (wayfinding) |
+| `damage_types` | Jenis gangguan/pekerjaan (master data) |
 | `damage_reports` | Laporan kerusakan dari admin |
+| `report_photos` | Foto bukti pekerjaan teknisi |
 | `task_assignments` | Penugasan teknisi ke laporan |
 | `work_logs` | Log aktivitas / transisi status pekerjaan |
 | `location_logs` | Koordinat GPS teknisi (realtime) |
 | `notifications` | Notifikasi untuk teknisi |
 | `personal_access_tokens` | Token Sanctum (Android) |
-| `cache`, `jobs` | Cache & antrian Laravel |
+| `cache`, `cache_locks` | Cache & cache locks Laravel |
+| `jobs`, `job_batches`, `failed_jobs` | Antrian Laravel |
 
 ---
 

@@ -53,7 +53,9 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-### Tabel (13 total)
+### Tabel (16 total)
+
+> Dokumentasi lengkap per kolom (tipe data, FK, constraint, logika bisnis) ada di [DATABASE.md](DATABASE.md).
 
 | Tabel | Keterangan |
 |---|---|
@@ -69,7 +71,10 @@ DB_PASSWORD=
 | `notifications` | Notifikasi untuk teknisi |
 | `personal_access_tokens` | Token Sanctum untuk Android |
 | `cache` | Laravel cache |
+| `cache_locks` | Laravel cache locks |
 | `jobs` | Laravel queue jobs |
+| `job_batches` | Laravel job batches |
+| `failed_jobs` | Laravel failed jobs |
 
 ## Struktur Aplikasi
 
