@@ -3,11 +3,10 @@
 use App\Livewire\Concerns\WithTableFilters;
 use App\Models\DamageReport;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
-new #[Layout('layouts.app')] class extends Component
+new class extends Component
 {
     use WithPagination, WithTableFilters;
 
@@ -23,7 +22,7 @@ new #[Layout('layouts.app')] class extends Component
     {
         return DamageReport::with(['damageType', 'taskAssignments.technician'])
             ->riwayatSelesai($this->search, $this->filterPeriod, $this->filterCategory)
-            ->paginate(10);
+            ->paginate(10, ['*'], 'riwayatPage');
     }
 
     #[Computed]
@@ -53,8 +52,31 @@ new #[Layout('layouts.app')] class extends Component
 }; ?>
 
 <div>
-    <x-mary-header title="Riwayat Pekerjaan" separator class="mb-6!">
-        <x-slot:actions>
+    {{-- Action, Filter & Search --}}
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div class="flex flex-wrap items-center gap-3">
+            <x-mary-input
+                wire:model.live.debounce="search"
+                placeholder="Cari pelanggan, alamat, atau judul..."
+                icon="o-magnifying-glass"
+                class="input-sm w-56 rounded-full"
+            />
+            <x-filter-chips
+                :options="['' => 'Semua', 'minggu' => 'Minggu Ini', 'bulan' => 'Bulan Ini']"
+                field="filterPeriod"
+                :selected="$filterPeriod"
+            />
+            <x-filter-chips
+                :options="['' => 'Semua Kategori'] + \App\Enums\ReportCategory::options()"
+                field="filterCategory"
+                :selected="$filterCategory"
+            />
+        </div>
+
+        <div class="flex items-center gap-4 shrink-0">
+            <span class="text-xs text-base-content/40">
+                {{ $this->riwayat->total() }} laporan selesai
+            </span>
             <x-dropdown label="Ekspor PDF" icon="o-document-arrow-down" class="btn-primary btn-sm rounded-full" right>
                 <li>
                     <a
@@ -78,30 +100,7 @@ new #[Layout('layouts.app')] class extends Component
                     </a>
                 </li>
             </x-dropdown>
-        </x-slot:actions>
-    </x-mary-header>
-
-    {{-- Filter & Search --}}
-    <div class="flex flex-wrap items-center gap-3 mb-4">
-        <x-mary-input
-            wire:model.live.debounce="search"
-            placeholder="Cari pelanggan, alamat, atau judul..."
-            icon="o-magnifying-glass"
-            class="input-sm w-56 rounded-full"
-        />
-        <x-filter-chips
-            :options="['' => 'Semua', 'minggu' => 'Minggu Ini', 'bulan' => 'Bulan Ini']"
-            field="filterPeriod"
-            :selected="$filterPeriod"
-        />
-        <x-filter-chips
-            :options="['' => 'Semua Kategori'] + \App\Enums\ReportCategory::options()"
-            field="filterCategory"
-            :selected="$filterCategory"
-        />
-        <span class="text-xs text-base-content/40 self-center ml-auto">
-            {{ $this->riwayat->total() }} laporan selesai
-        </span>
+        </div>
     </div>
 
     {{-- Tabel --}}

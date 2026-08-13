@@ -30,7 +30,7 @@ class LaporanFormTest extends TestCase
 
         $this->actingAs($admin);
 
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->set('customer_id', $customer->id) // kategori default = pelanggan (dari mount)
             ->set('damage_type_id', $type->id)
             ->set('selectedTechnicians', [$tech->id])
@@ -60,7 +60,7 @@ class LaporanFormTest extends TestCase
         $type  = DamageType::factory()->create();
         $this->actingAs($admin);
 
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->set('category', ReportCategory::Jaringan->value)
             ->set('title', 'Kabel utama putus area Cibitung')
             ->set('address', 'Backbone RT 03, Cibitung')
@@ -84,7 +84,7 @@ class LaporanFormTest extends TestCase
 
         // Kategori pemeliharaan: jenis gangguan opsional (pekerjaan preventif, bukan
         // kerusakan). Tanpa damage_type_id pun harus lolos validasi & tersimpan null.
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->set('category', ReportCategory::Pemeliharaan->value)
             ->set('title', 'Perawatan rutin POP Cibitung')
             ->set('address', 'POP Cibitung')
@@ -104,7 +104,7 @@ class LaporanFormTest extends TestCase
         $customer = Customer::factory()->create();
 
         // Kategori pelanggan (default): jenis gangguan tetap wajib.
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->set('customer_id', $customer->id)
             ->call('save')
             ->assertHasErrors(['damage_type_id' => 'required']);
@@ -117,7 +117,7 @@ class LaporanFormTest extends TestCase
         $this->actingAs(User::factory()->admin()->create());
 
         // Kategori default pelanggan → customer_id wajib; damage_type wajib.
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->call('save')
             ->assertHasErrors(['customer_id', 'damage_type_id']);
 
@@ -131,7 +131,7 @@ class LaporanFormTest extends TestCase
         $type  = DamageType::factory()->create();
         $this->actingAs($admin);
 
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->set('category', ReportCategory::Jaringan->value)
             ->set('damage_type_id', $type->id)
             ->call('save')
@@ -154,7 +154,7 @@ class LaporanFormTest extends TestCase
         $this->actingAs($admin);
 
         try {
-            Volt::test('pages.laporan.index')
+            Volt::test('pages.laporan.aktif')
                 ->set('customer_id', $customer->id)
                 ->set('damage_type_id', $type->id)
                 ->set('selectedTechnicians', [999999]) // teknisi tidak ada → FK gagal
@@ -183,7 +183,7 @@ class LaporanFormTest extends TestCase
 
         $this->actingAs($admin);
 
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->set('customer_id', $customer->id)
             ->set('damage_type_id', $type->id)
             ->set('selectedTechnicians', [$admin->id, 999999]) // admin + ID tak ada
@@ -200,7 +200,7 @@ class LaporanFormTest extends TestCase
         $this->actingAs(User::factory()->admin()->create());
         $report = DamageReport::factory()->create(['customer_name' => 'Pak Sigit']);
 
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->call('confirmDelete', $report->id)
             ->assertSet('showDeleteModal', true)
             ->assertSet('deletingName', 'Pak Sigit'); // judul (customer_name ?? title)

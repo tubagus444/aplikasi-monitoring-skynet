@@ -24,7 +24,7 @@ class TableFiltersResetTest extends TestCase
         $this->actingAs(User::factory()->admin()->create());
         DamageReport::factory()->count(15)->create(); // > 10 → ada halaman 2
 
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->call('gotoPage', 2)
             ->assertSet('paginators.page', 2)
             ->set('search', 'apa pun')
@@ -36,7 +36,7 @@ class TableFiltersResetTest extends TestCase
         $this->actingAs(User::factory()->admin()->create());
         DamageReport::factory()->count(15)->create();
 
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->call('gotoPage', 2)
             ->assertSet('paginators.page', 2)
             ->set('filterStatus', 'ditugaskan')

@@ -29,7 +29,7 @@ class RiwayatCategoryTest extends TestCase
         DamageReport::factory()->selesai()->create(['customer_name' => 'Pak Hendra']);
         DamageReport::factory()->jaringan()->selesai()->create(['title' => 'Kabel Utama Putus']);
 
-        $this->get('/history')
+        $this->get('/reports')
             ->assertOk()
             ->assertSee('Pak Hendra')        // judul = customer_name (pelanggan)
             ->assertSee('Kabel Utama Putus') // judul = title (non-pelanggan)
@@ -57,7 +57,7 @@ class RiwayatCategoryTest extends TestCase
             'caption'   => 'Konektor diganti',
         ]);
 
-        Volt::test('pages.riwayat')
+        Volt::test('pages.laporan.riwayat')
             ->call('openDetail', $report->id)
             ->assertSee('Foto Bukti Pekerjaan')
             ->assertSee('report-photos/bukti-uji.jpg')

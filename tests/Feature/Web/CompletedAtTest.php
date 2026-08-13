@@ -80,7 +80,7 @@ class CompletedAtTest extends TestCase
 
         $this->actingAs(User::factory()->admin()->create());
 
-        Volt::test('pages.riwayat')
+        Volt::test('pages.laporan.riwayat')
             ->call('openDetail', $report->id)
             ->assertSet('showDetailModal', true)
             ->assertSee('2 jam')    // durasiPenanganan() terpusat, di jalur modal

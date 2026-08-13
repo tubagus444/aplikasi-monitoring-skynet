@@ -41,7 +41,7 @@ class FilterScopingTest extends TestCase
 
         $this->actingAs($admin);
 
-        Volt::test('pages.laporan.index')
+        Volt::test('pages.laporan.aktif')
             ->set('search', 'Pelanggan')
             ->set('filterStatus', 'sedang_memperbaiki')
             ->assertSee('PelangganAlpha')      // status cocok -> tampil

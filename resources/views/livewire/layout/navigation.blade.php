@@ -37,7 +37,7 @@ new class extends Component
         <x-mary-menu-item title="Dashboard"  icon="o-squares-2x2"       route="dashboard"    />
         <x-mary-menu-item title="Laporan"    icon="o-exclamation-circle" route="reports.index" />
         <x-mary-menu-item title="Monitoring" icon="o-map-pin"            route="monitoring"   />
-        <x-mary-menu-item title="Riwayat"    icon="o-clock"              route="history"      />
+
         <x-mary-menu-item title="Statistik"  icon="o-chart-bar"          route="statistik"    />
         <x-mary-menu-item title="Pelanggan"  icon="o-identification"     route="customers.index" />
         <x-mary-menu-item title="Jenis Gangguan" icon="o-wrench-screwdriver" route="damage-types.index" />
