@@ -24,7 +24,7 @@ class CustomersExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
 
     public function query(): Builder
     {
-        return Customer::query()->filtered($this->search, $this->status);
+        return Customer::query()->with('internetPackage')->filtered($this->search, $this->status);
     }
 
     public function headings(): array
@@ -40,7 +40,7 @@ class CustomersExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
             $customer->phone,
             $customer->address,
             $customer->ip_address,
-            $customer->subscription_package,
+            $customer->internetPackage?->name,
             CustomerStatus::tryFrom($customer->status)?->label() ?? $customer->status,
             $customer->installed_at?->format('d/m/Y'),
         ];

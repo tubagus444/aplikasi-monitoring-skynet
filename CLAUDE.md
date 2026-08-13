@@ -53,14 +53,15 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-### Tabel (16 total)
+### Tabel (17 total)
 
 > Dokumentasi lengkap per kolom (tipe data, FK, constraint, logika bisnis) ada di [DATABASE.md](DATABASE.md).
 
 | Tabel | Keterangan |
 |---|---|
 | `users` | Admin dan teknisi |
-| `customers` | Pelanggan (entitas tersendiri); laporan kategori "pelanggan" menunjuk ke sini via FK |
+| `customers` | Pelanggan (entitas tersendiri); FK `internet_package_id` → `internet_packages` (nullable, `nullOnDelete`); laporan kategori "pelanggan" menunjuk ke sini via FK |
+| `internet_packages` | Paket internet (master data, CRUD admin); dirujuk `customers.internet_package_id` (nullable, `nullOnDelete`) |
 | `customer_photos` | Foto rumah pelanggan (wayfinding); path file di disk `public`, append-only |
 | `damage_types` | Jenis gangguan/pekerjaan (master data, CRUD admin); dirujuk `damage_reports.damage_type_id` (nullable, `nullOnDelete`) |
 | `damage_reports` | Laporan kerusakan dari admin (punya `category` + `customer_id` nullable + `title`) |
@@ -108,6 +109,7 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 6. Pelanggan — full CRUD + filter status + search + **detail** (galeri foto rumah + ringkasan + riwayat perbaikan per pelanggan) + **ekspor PDF & Excel**
 7. Statistik — analitik read-only: pecahan laporan per kategori, rata-rata durasi penanganan, **tren komplain 12 bulan (Chart.js)**, kinerja per teknisi, kerusakan tersering (top 5)
 8. Jenis Gangguan — full CRUD master data jenis gangguan/pekerjaan (`damage_types`) + search + kolom "Dipakai" (jumlah laporan). Hapus jenis = `nullOnDelete` (laporan utuh, kolomnya jadi NULL/"—")
+9. Paket Internet — full CRUD master data paket internet (`internet_packages`) + search + kolom "Dipakai" (jumlah pelanggan) + harga + kecepatan. Hapus paket = `nullOnDelete` (pelanggan utuh, kolomnya jadi NULL/"—")
 
 ### Layar Android Teknisi (direncanakan 6 layar)
 
@@ -135,10 +137,11 @@ app/
                         # CustomerExportController (ekspor PDF + Excel pelanggan, ikut filter scope)
   Exports/              # CustomersExport (maatwebsite/excel: FromQuery+WithHeadings+WithMapping
                         # +ShouldAutoSize) — pakai scope Customer::filtered (sama dgn halaman+PDF)
-  Models/               # DamageReport, DamageType, TaskAssignment,
+  Models/               # DamageReport, DamageType, InternetPackage, TaskAssignment,
                         # WorkLog, LocationLog, Notification, User, Customer, CustomerPhoto, ReportPhoto
                         # Customer: scope filtered($search,$status) = sumber tunggal filter
-                        # (halaman Pelanggan + ekspor PDF/Excel); relasi reports()/photos().
+                        # (halaman Pelanggan + ekspor PDF/Excel); relasi reports()/photos()/internetPackage().
+                        # InternetPackage: master data paket internet; relasi customers().
                         # CustomerPhoto: append-only (created_at saja), path di disk public.
                         # ReportPhoto: foto bukti pekerjaan teknisi (sebelum/sesudah), append-only,
                         # disk public; relasi DamageReport::photos(); diunggah via API tasks/{id}/photos.
@@ -193,7 +196,10 @@ resources/views/livewire/pages/
   pengguna/index.blade.php
   jenis-gangguan/index.blade.php # CRUD master data jenis gangguan/pekerjaan (damage_types)
                              # + search + kolom "Dipakai"; modal hapus jelaskan dampak nullOnDelete
+  paket-internet/index.blade.php # CRUD master data paket internet (internet_packages)
+                             # + search + kolom "Dipakai" (pelanggan) + harga + kecepatan; nullOnDelete
   pelanggan/index.blade.php  # CRUD pelanggan + filter status + search + ekspor PDF/Excel
+                             # + dropdown paket dari master internet_packages
   pelanggan/detail.blade.php # galeri foto rumah (upload/hapus) + ringkasan + riwayat perbaikan
 resources/views/components/ # Komponen Blade reusable panel admin: status-pill, category-pill,
                         # table-card, filter-chips, confirm-delete-modal (lihat "Bahasa Visual")
@@ -202,9 +208,9 @@ resources/views/pdf/    # Template dompdf: layout (kop + footer + @yield('meta')
                         # (CSS inline, font DejaVu Sans; tiap template isi @section('meta') sendiri)
 database/
   migrations/           # Semua migrasi tabel (+ backfill_customers_from_damage_reports = data lama)
-  seeders/              # Seeder untuk semua tabel utama (+ CustomerSeeder)
+  seeders/              # Seeder untuk semua tabel utama (+ CustomerSeeder, InternetPackageSeeder)
   factories/            # UserFactory, DamageTypeFactory, DamageReportFactory (sadar kategori),
-                        # CustomerFactory, CustomerPhotoFactory, ReportPhotoFactory
+                        # CustomerFactory, CustomerPhotoFactory, ReportPhotoFactory, InternetPackageFactory
 config/
   firebase.php          # Konfigurasi kreait/laravel-firebase
 tests/
@@ -230,7 +236,9 @@ tests/
                         # TaskTest juga menguji catatan pekerjaan (description) tersimpan & tampil di detail
                         # TaskPhotoTest (Api): unggah foto bukti & rumah — 201/validasi gambar/
                         # scope kepemilikan (404)/house-photos non-pelanggan ditolak (422)/repair_photos di detail
-                        # (107 test cases, semua pass — 39 API + 68 Web)
+                        # PaketInternetCrudTest (CRUD paket internet + nama unik + hapus→pelanggan utuh/kolom NULL
+                        # + harga opsional + kecepatan wajib positif)
+                        # (118 test cases, semua pass — 39 API + 79 Web)
 ```
 
 ## Routes & Endpoint
@@ -302,6 +310,11 @@ tests/
 | Method | Path | Keterangan |
 |---|---|---|
 | GET | `/damage-types` | Daftar jenis gangguan/pekerjaan + search (aksi CRUD = Livewire action). Hapus = `nullOnDelete` |
+
+**Paket Internet (master data)**
+| Method | Path | Keterangan |
+|---|---|---|
+| GET | `/internet-packages` | Daftar paket internet + search (aksi CRUD = Livewire action). Hapus = `nullOnDelete` (pelanggan utuh) |
 
 **Ekspor** _(route HTTP riil)_
 | Method | Path | Keterangan |

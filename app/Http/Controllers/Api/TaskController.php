@@ -16,7 +16,7 @@ class TaskController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $tasks = TaskAssignment::with(['report.damageType', 'report.customer'])
+        $tasks = TaskAssignment::with(['report.damageType', 'report.customer.internetPackage'])
             ->where('technician_id', $request->user()->id)
             ->whereHas('report', fn($q) => $q->whereIn('status', [ReportStatus::Ditugaskan->value, ReportStatus::SedangMemperbaiki->value]))
             ->latest('assigned_at')
@@ -32,6 +32,7 @@ class TaskController extends Controller
                 'report.damageType',
                 'report.workLogs.technician',
                 'report.customer.photos',
+                'report.customer.internetPackage',
                 'report.photos.uploader',
             ])
             ->where('technician_id', $request->user()->id)
@@ -204,7 +205,7 @@ class TaskController extends Controller
             // Kontak & info teknis pelanggan — null untuk laporan non-pelanggan.
             'phone'                => $customer?->phone,
             'ip_address'           => $customer?->ip_address,
-            'subscription_package' => $customer?->subscription_package,
+            'subscription_package' => $customer?->internetPackage?->name,
         ];
 
         if ($detailed) {

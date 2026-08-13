@@ -62,11 +62,12 @@ class TaskTest extends TestCase
     public function test_detail_tugas_pelanggan_menyertakan_kontak_dan_foto_rumah(): void
     {
         $teknisi  = User::factory()->teknisi()->create();
+        $pkg = \App\Models\InternetPackage::create(['name' => '20 Mbps', 'speed_mbps' => 20, 'price' => 150000]);
         $customer = Customer::factory()->create([
-            'name'                 => 'Pak Hendra',
-            'phone'                => '081234567890',
-            'ip_address'           => '192.168.10.5',
-            'subscription_package' => '20 Mbps',
+            'name'                => 'Pak Hendra',
+            'phone'               => '081234567890',
+            'ip_address'          => '192.168.10.5',
+            'internet_package_id' => $pkg->id,
         ]);
         CustomerPhoto::create([
             'customer_id' => $customer->id,

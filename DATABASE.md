@@ -20,12 +20,23 @@
 - `phone` (varchar)
 - `address` (varchar)
 - `ip_address` (varchar, nullable) - IP pelanggan sebagai pengganti kode pelanggan (identitas SkyNet)
-- `subscription_package` (varchar, nullable) - Paket langganan
+- `internet_package_id` (bigint unsigned, FK → `internet_packages.id`, nullable, nullOnDelete) - Paket internet pelanggan; NULL jika paket dihapus atau belum diisi
 - `status` (enum: `aktif`|`isolir`|`berhenti`, default `aktif`)
 - `latitude` (decimal(10,8), nullable) - Koordinat rumah pelanggan
 - `longitude` (decimal(11,8), nullable)
 - `installed_at` (date, nullable) - Tanggal instalasi
 - `created_at` (timestamp, nullable)
+- `updated_at` (timestamp, nullable)
+
+---
+
+## Tabel: internet_packages
+- `id` (bigint unsigned, PK, auto-increment)
+- `name` (varchar, Unique) - Nama paket (mis. "20 Mbps")
+- `speed_mbps` (unsigned integer) - Kecepatan nominal dalam Mbps
+- `price` (unsigned integer, nullable) - Harga bulanan dalam Rupiah
+- `description` (varchar, nullable) - Keterangan tambahan
+- `created_at` (timestamp, default CURRENT)
 - `updated_at` (timestamp, nullable)
 
 ---

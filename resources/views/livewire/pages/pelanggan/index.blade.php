@@ -3,6 +3,7 @@
 use App\Enums\CustomerStatus;
 use App\Livewire\Concerns\WithTableFilters;
 use App\Models\Customer;
+use App\Models\InternetPackage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -29,7 +30,7 @@ new #[Layout('layouts.app')] class extends Component
     public string $phone = '';
     public string $address = '';
     public ?string $ip_address = '';
-    public ?string $subscription_package = '';
+    public ?int $internet_package_id = null;
     public string $status = '';
     public ?string $latitude = '';
     public ?string $longitude = '';
@@ -44,7 +45,19 @@ new #[Layout('layouts.app')] class extends Component
     public function customers()
     {
         // Filter dipusatkan di scope Customer::filtered (dipakai bersama ekspor PDF/Excel).
-        return Customer::filtered($this->search, $this->filterStatus)->paginate(10);
+        return Customer::with('internetPackage')
+            ->filtered($this->search, $this->filterStatus)
+            ->paginate(10);
+    }
+
+    /** Daftar paket internet untuk dropdown form. */
+    #[Computed]
+    public function packageOptions()
+    {
+        return InternetPackage::orderBy('speed_mbps')
+            ->get()
+            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name . ' — Rp ' . number_format($p->price ?? 0, 0, ',', '.')])
+            ->toArray();
     }
 
     public function openCreate(): void
@@ -62,7 +75,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->phone = $customer->phone;
         $this->address = $customer->address;
         $this->ip_address = $customer->ip_address ?? '';
-        $this->subscription_package = $customer->subscription_package ?? '';
+        $this->internet_package_id = $customer->internet_package_id;
         $this->status = $customer->status;
         $this->latitude = $customer->latitude !== null ? (string) $customer->latitude : '';
         $this->longitude = $customer->longitude !== null ? (string) $customer->longitude : '';
@@ -75,7 +88,7 @@ new #[Layout('layouts.app')] class extends Component
     {
         // Normalisasi field opsional: '' (input kosong) → null sebelum validasi/simpan
         // agar aturan nullable|numeric/date tidak menolak string kosong.
-        foreach (['ip_address', 'subscription_package', 'latitude', 'longitude', 'installed_at'] as $opt) {
+        foreach (['ip_address', 'latitude', 'longitude', 'installed_at'] as $opt) {
             if ($this->{$opt} === '') {
                 $this->{$opt} = null;
             }
@@ -86,7 +99,7 @@ new #[Layout('layouts.app')] class extends Component
             'phone'                => 'required|string|max:30',
             'address'              => 'required|string|max:255',
             'ip_address'           => 'nullable|string|max:45',
-            'subscription_package' => 'nullable|string|max:255',
+            'internet_package_id'  => 'nullable|exists:internet_packages,id',
             'status'               => 'required|in:' . implode(',', CustomerStatus::values()),
             'latitude'             => 'nullable|numeric|between:-90,90',
             'longitude'            => 'nullable|numeric|between:-180,180',
@@ -135,7 +148,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->phone = '';
         $this->address = '';
         $this->ip_address = '';
-        $this->subscription_package = '';
+        $this->internet_package_id = null;
         $this->status = CustomerStatus::Aktif->value;
         $this->latitude = '';
         $this->longitude = '';
@@ -185,7 +198,7 @@ new #[Layout('layouts.app')] class extends Component
     <div class="flex flex-wrap items-center gap-3 mb-4">
         <x-mary-input
             wire:model.live.debounce="search"
-            placeholder="Cari nama, HP, alamat, atau IP..."
+            placeholder="Cari nama, HP, alamat, IP, atau paket..."
             icon="o-magnifying-glass"
             class="input-sm w-64 rounded-full"
         />
@@ -227,7 +240,7 @@ new #[Layout('layouts.app')] class extends Component
                     {{ $customer->ip_address ?? '—' }}
                 </td>
                 <td class="text-xs text-base-content/60">
-                    {{ $customer->subscription_package ?? '—' }}
+                    {{ $customer->internetPackage?->name ?? '—' }}
                 </td>
                 <td>
                     @php
@@ -310,10 +323,13 @@ new #[Layout('layouts.app')] class extends Component
                 icon="o-globe-alt"
                 hint="Pengganti kode pelanggan"
             />
-            <x-mary-input
+            <x-select
                 label="Paket Internet"
-                wire:model="subscription_package"
-                placeholder="mis. 20 Mbps (opsional)"
+                wire:model="internet_package_id"
+                :options="$this->packageOptions"
+                option-value="id"
+                option-label="name"
+                placeholder="Pilih paket (opsional)"
                 icon="o-wifi"
             />
         </div>

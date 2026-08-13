@@ -5,6 +5,7 @@ namespace Tests\Feature\Web;
 use App\Enums\CustomerStatus;
 use App\Models\Customer;
 use App\Models\DamageReport;
+use App\Models\InternetPackage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
@@ -27,22 +28,25 @@ class PelangganCrudTest extends TestCase
 
     public function test_tambah_pelanggan_baru(): void
     {
+        $pkg = InternetPackage::create(['name' => '20 Mbps', 'speed_mbps' => 20, 'price' => 150000]);
+
         Volt::test('pages.pelanggan.index')
             ->set('name', 'Pak Hendra')
             ->set('phone', '081234567890')
             ->set('address', 'Jl. Mawar No. 5, Cibitung')
             ->set('ip_address', '192.168.10.5')
-            ->set('subscription_package', '20 Mbps')
+            ->set('internet_package_id', $pkg->id)
             ->set('status', CustomerStatus::Aktif->value)
             ->call('save')
             ->assertSet('showFormModal', false)
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('customers', [
-            'name'       => 'Pak Hendra',
-            'phone'      => '081234567890',
-            'ip_address' => '192.168.10.5',
-            'status'     => CustomerStatus::Aktif->value,
+            'name'                => 'Pak Hendra',
+            'phone'               => '081234567890',
+            'ip_address'          => '192.168.10.5',
+            'internet_package_id' => $pkg->id,
+            'status'              => CustomerStatus::Aktif->value,
         ]);
     }
 
@@ -53,7 +57,7 @@ class PelangganCrudTest extends TestCase
             ->set('phone', '08123')
             ->set('address', 'Jl. Melati')
             ->set('ip_address', '')
-            ->set('subscription_package', '')
+            ->set('internet_package_id', null)
             ->set('latitude', '')
             ->set('longitude', '')
             ->set('installed_at', '')
@@ -61,12 +65,12 @@ class PelangganCrudTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('customers', [
-            'name'                 => 'Bu Sari',
-            'ip_address'           => null,
-            'subscription_package' => null,
-            'latitude'             => null,
-            'longitude'            => null,
-            'installed_at'         => null,
+            'name'                => 'Bu Sari',
+            'ip_address'          => null,
+            'internet_package_id' => null,
+            'latitude'            => null,
+            'longitude'           => null,
+            'installed_at'        => null,
         ]);
     }
 

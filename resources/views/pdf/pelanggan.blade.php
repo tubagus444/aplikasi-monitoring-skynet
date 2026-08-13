@@ -73,7 +73,7 @@
                         <td>{{ $customer->phone ?: '—' }}</td>
                         <td>{{ $customer->address }}</td>
                         <td>{{ $customer->ip_address ?: '—' }}</td>
-                        <td>{{ $customer->subscription_package ?: '—' }}</td>
+                        <td>{{ $customer->internetPackage?->name ?: '—' }}</td>
                         <td><span class="badge {{ $badge }}">{{ $statusLabel }}</span></td>
                         <td>{{ $customer->installed_at?->format('d/m/Y') ?? '—' }}</td>
                     </tr>

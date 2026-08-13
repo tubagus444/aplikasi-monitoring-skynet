@@ -23,7 +23,7 @@ class CustomerExportController extends Controller
 
         [$search, $status] = $this->filters($request);
 
-        $customers = Customer::filtered($search, $status)->get();
+        $customers = Customer::with('internetPackage')->filtered($search, $status)->get();
 
         $meta = [
             'brand'       => 'SkyNet RT/RW Net',

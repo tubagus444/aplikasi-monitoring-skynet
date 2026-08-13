@@ -136,7 +136,7 @@ new #[Layout('layouts.app')] class extends Component
                         <x-avatar :placeholder="strtoupper(substr($c->name, 0, 1))" class="w-12! h-12! bg-secondary/10 text-secondary" />
                         <div class="min-w-0">
                             <h3 class="text-lg font-bold truncate">{{ $c->name }}</h3>
-                            <p class="text-sm text-base-content/50">{{ $c->subscription_package ?? 'Paket belum diisi' }}</p>
+                            <p class="text-sm text-base-content/50">{{ $c->internetPackage?->name ?? 'Paket belum diisi' }}</p>
                         </div>
                     </div>
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium {{ $statusStyle['pill'] }} shrink-0">

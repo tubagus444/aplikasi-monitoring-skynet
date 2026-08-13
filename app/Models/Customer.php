@@ -15,7 +15,7 @@ class Customer extends Model
         'phone',
         'address',
         'ip_address',
-        'subscription_package',
+        'internet_package_id',
         'status',
         'latitude',
         'longitude',
@@ -44,6 +44,9 @@ class Customer extends Model
                   ->orWhere('phone', 'like', "%{$search}%")
                   ->orWhere('address', 'like', "%{$search}%")
                   ->orWhere('ip_address', 'like', "%{$search}%")
+                  ->orWhereHas('internetPackage', fn ($ip) =>
+                      $ip->where('name', 'like', "%{$search}%")
+                  )
             ))
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('name');
@@ -64,5 +67,11 @@ class Customer extends Model
     public function photos()
     {
         return $this->hasMany(CustomerPhoto::class, 'customer_id');
+    }
+
+    /** Paket internet pelanggan (master data). */
+    public function internetPackage()
+    {
+        return $this->belongsTo(InternetPackage::class, 'internet_package_id');
     }
 }
