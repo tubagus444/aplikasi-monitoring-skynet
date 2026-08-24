@@ -15,6 +15,8 @@ use Tests\TestCase;
  * CRUD halaman admin Pelanggan (modul Pelanggan, batch 3): tambah/edit/hapus,
  * normalisasi field opsional, dan jaminan hapus pelanggan TIDAK menghapus laporan
  * (FK nullOnDelete) — snapshot nama/alamat di laporan tetap utuh.
+ *
+ * Termasuk test soft delete: restore, force delete, dan tampilan terhapus.
  */
 class PelangganCrudTest extends TestCase
 {
@@ -114,7 +116,9 @@ class PelangganCrudTest extends TestCase
         ]);
     }
 
-    public function test_hapus_pelanggan_tidak_menghapus_laporan(): void
+    // ── Soft Delete ─────────────────────────────────────────────────────
+
+    public function test_hapus_pelanggan_soft_delete(): void
     {
         $customer = Customer::factory()->create();
         $report = DamageReport::factory()->create([
@@ -128,14 +132,94 @@ class PelangganCrudTest extends TestCase
             ->call('deleteCustomer')
             ->assertSet('showDeleteModal', false);
 
-        $this->assertDatabaseMissing('customers', ['id' => $customer->id]);
-        // Laporan tetap ada; FK jadi NULL, snapshot nama tetap utuh.
+        // Pelanggan soft-deleted — baris masih ada di DB, tapi punya deleted_at.
+        $this->assertSoftDeleted('customers', ['id' => $customer->id]);
+
+        // Laporan tetap ada; customer_id TETAP terisi (bukan NULL) karena
+        // pelanggan masih ada di database (hanya soft-deleted).
         $this->assertDatabaseHas('damage_reports', [
             'id'            => $report->id,
-            'customer_id'   => null,
+            'customer_id'   => $customer->id,
             'customer_name' => 'Snapshot Nama',
         ]);
     }
+
+    public function test_restore_pelanggan(): void
+    {
+        $customer = Customer::factory()->create();
+        $customer->delete(); // soft delete
+
+        $this->assertSoftDeleted('customers', ['id' => $customer->id]);
+
+        Volt::test('pages.pelanggan.index')
+            ->call('restoreCustomer', $customer->id);
+
+        // Setelah restore, pelanggan kembali aktif (deleted_at = null).
+        $this->assertDatabaseHas('customers', [
+            'id'         => $customer->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_force_delete_pelanggan_hapus_permanen(): void
+    {
+        $customer = Customer::factory()->create();
+        $report = DamageReport::factory()->create([
+            'customer_id'   => $customer->id,
+            'customer_name' => 'Snapshot Permanen',
+        ]);
+
+        $customer->delete(); // soft delete dulu
+
+        Volt::test('pages.pelanggan.index')
+            ->call('confirmForceDelete', $customer->id)
+            ->assertSet('deletingName', $customer->name)
+            ->call('forceDeleteCustomer')
+            ->assertSet('showForceDeleteModal', false);
+
+        // Pelanggan benar-benar hilang dari database.
+        $this->assertDatabaseMissing('customers', ['id' => $customer->id]);
+
+        // Laporan tetap ada; FK jadi NULL (nullOnDelete), snapshot tetap utuh.
+        $this->assertDatabaseHas('damage_reports', [
+            'id'            => $report->id,
+            'customer_id'   => null,
+            'customer_name' => 'Snapshot Permanen',
+        ]);
+    }
+
+    public function test_toggle_tampilan_terhapus(): void
+    {
+        $aktif = Customer::factory()->create(['name' => 'Pelanggan Aktif']);
+        $terhapus = Customer::factory()->create(['name' => 'Pelanggan Terhapus']);
+        $terhapus->delete(); // soft delete
+
+        // Tampilan normal: hanya pelanggan aktif
+        $component = Volt::test('pages.pelanggan.index');
+        $rows = $component->get('customers');
+        $this->assertCount(1, $rows);
+        $this->assertSame('Pelanggan Aktif', $rows->first()->name);
+
+        // Toggle ke tampilan terhapus: hanya pelanggan soft-deleted
+        $component->call('toggleTrashed')->assertSet('showTrashed', true);
+        $rows = $component->get('customers');
+        $this->assertCount(1, $rows);
+        $this->assertSame('Pelanggan Terhapus', $rows->first()->name);
+    }
+
+    public function test_trashed_count_badge(): void
+    {
+        Customer::factory()->create(); // aktif
+        $terhapus1 = Customer::factory()->create();
+        $terhapus2 = Customer::factory()->create();
+        $terhapus1->delete();
+        $terhapus2->delete();
+
+        $component = Volt::test('pages.pelanggan.index');
+        $this->assertSame(2, $component->get('trashedCount'));
+    }
+
+    // ── Filter ──────────────────────────────────────────────────────────
 
     public function test_filter_status_dan_search(): void
     {
@@ -154,5 +238,16 @@ class PelangganCrudTest extends TestCase
         $rows = $component->get('customers');
         $this->assertCount(1, $rows);
         $this->assertSame('Aktif Satu', $rows->first()->name);
+    }
+
+    public function test_soft_deleted_tidak_muncul_di_daftar_utama(): void
+    {
+        $aktif = Customer::factory()->create(['name' => 'Tampil']);
+        $terhapus = Customer::factory()->create(['name' => 'Tersembunyi']);
+        $terhapus->delete();
+
+        $rows = Volt::test('pages.pelanggan.index')->get('customers');
+        $this->assertCount(1, $rows);
+        $this->assertSame('Tampil', $rows->first()->name);
     }
 }

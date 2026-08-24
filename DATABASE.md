@@ -14,7 +14,7 @@
 
 ---
 
-## Tabel: customers
+## Tabel: customers *(SoftDeletes)*
 - `id` (bigint unsigned, PK, auto-increment)
 - `name` (varchar)
 - `phone` (varchar)
@@ -27,6 +27,12 @@
 - `installed_at` (date, nullable) - Tanggal instalasi
 - `created_at` (timestamp, nullable)
 - `updated_at` (timestamp, nullable)
+- `deleted_at` (timestamp, nullable) - Soft delete: diisi saat pelanggan "dihapus" (data tetap di DB, bisa dipulihkan)
+
+> **Catatan**: Hapus pelanggan = soft delete (kolom `deleted_at` diisi, baris tetap ada).
+> Admin bisa memulihkan (restore) dari tampilan "Pelanggan Terhapus", atau menghapus
+> permanen (force delete) — saat itu FK `nullOnDelete` di `damage_reports.customer_id`
+> bekerja (customer_id → NULL, snapshot `customer_name`/`address` tetap utuh).
 
 ---
 

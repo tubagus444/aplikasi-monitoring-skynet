@@ -60,7 +60,7 @@ DB_PASSWORD=
 | Tabel | Keterangan |
 |---|---|
 | `users` | Admin dan teknisi |
-| `customers` | Pelanggan (entitas tersendiri); FK `internet_package_id` → `internet_packages` (nullable, `nullOnDelete`); laporan kategori "pelanggan" menunjuk ke sini via FK |
+| `customers` | Pelanggan (entitas tersendiri, **SoftDeletes**); FK `internet_package_id` → `internet_packages` (nullable, `nullOnDelete`); laporan kategori "pelanggan" menunjuk ke sini via FK |
 | `internet_packages` | Paket internet (master data, CRUD admin); dirujuk `customers.internet_package_id` (nullable, `nullOnDelete`) |
 | `customer_photos` | Foto rumah pelanggan (wayfinding); path file di disk `public`, append-only |
 | `damage_types` | Jenis gangguan/pekerjaan (master data, CRUD admin); dirujuk `damage_reports.damage_type_id` (nullable, `nullOnDelete`) |
@@ -106,7 +106,7 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 3. Monitoring GPS — Leaflet.js realtime, polling 10 detik
 4. Riwayat — laporan selesai + filter periode + **filter kategori** + detail modal + **ekspor PDF** (mode ringkasan & lengkap, ikut filter kategori)
 5. Pengguna — full CRUD admin & teknisi
-6. Pelanggan — full CRUD + filter status + search + **detail** (galeri foto rumah + ringkasan + riwayat perbaikan per pelanggan) + **ekspor PDF & Excel**
+6. Pelanggan — full CRUD + filter status + search + **detail** (galeri foto rumah + ringkasan + riwayat perbaikan per pelanggan) + **ekspor PDF & Excel** + **soft delete** (hapus = sembunyikan, bisa pulihkan; force delete dari tampilan terhapus)
 7. Statistik — analitik read-only: pecahan laporan per kategori, rata-rata durasi penanganan, **tren komplain 12 bulan (Chart.js)**, kinerja per teknisi, kerusakan tersering (top 5)
 8. Jenis Gangguan — full CRUD master data jenis gangguan/pekerjaan (`damage_types`) + search + kolom "Dipakai" (jumlah laporan). Hapus jenis = `nullOnDelete` (laporan utuh, kolomnya jadi NULL/"—")
 9. Paket Internet — full CRUD master data paket internet (`internet_packages`) + search + kolom "Dipakai" (jumlah pelanggan) + harga + kecepatan. Hapus paket = `nullOnDelete` (pelanggan utuh, kolomnya jadi NULL/"—")
@@ -139,7 +139,8 @@ app/
                         # +ShouldAutoSize) — pakai scope Customer::filtered (sama dgn halaman+PDF)
   Models/               # DamageReport, DamageType, InternetPackage, TaskAssignment,
                         # WorkLog, LocationLog, Notification, User, Customer, CustomerPhoto, ReportPhoto
-                        # Customer: scope filtered($search,$status) = sumber tunggal filter
+                        # Customer: SoftDeletes (hapus = soft delete, admin bisa restore/force-delete);
+                        # scope filtered($search,$status) = sumber tunggal filter
                         # (halaman Pelanggan + ekspor PDF/Excel); relasi reports()/photos()/internetPackage().
                         # InternetPackage: master data paket internet; relasi customers().
                         # CustomerPhoto: append-only (created_at saja), path di disk public.
@@ -226,7 +227,7 @@ tests/
                         # UserDeletionPreservesHistoryTest (hapus user → riwayat utuh, FK null),
                         # PenggunaDeletionGuardTest (deleteUser tolak hapus diri sendiri walau lewati confirmDelete),
                         # TableFiltersResetTest (trait WithTableFilters: ubah search/filter reset paginasi ke hal. 1),
-                        # PelangganCrudTest (CRUD + opsional→null + hapus jaga laporan),
+                        # PelangganCrudTest (CRUD + opsional→null + soft delete + restore + force delete + toggle terhapus),
                         # PelangganDetailTest (render + upload/hapus foto + ringkasan stats),
                         # PelangganExportTest (ekspor PDF/Excel ikut scope filtered),
                         # RiwayatCategoryTest (judul/kategori di Riwayat + ekspor PDF non-pelanggan
@@ -238,7 +239,7 @@ tests/
                         # scope kepemilikan (404)/house-photos non-pelanggan ditolak (422)/repair_photos di detail
                         # PaketInternetCrudTest (CRUD paket internet + nama unik + hapus→pelanggan utuh/kolom NULL
                         # + harga opsional + kecepatan wajib positif)
-                        # (118 test cases, semua pass — 39 API + 79 Web)
+                        # (123 test cases, semua pass — 39 API + 84 Web)
 ```
 
 ## Routes & Endpoint
@@ -376,7 +377,8 @@ tests/
   **snapshot** saat simpan), kategori `jaringan`/`pemeliharaan` pakai `title` + `address` (lokasi),
   `customer_id`/`customer_name` NULL. Validasi bersyarat lewat `ReportCategory::butuhPelanggan()`.
   Tampilan headline mana pun kategorinya pakai accessor `$report->judul` (`customer_name ?? title`).
-  Hapus pelanggan TIDAK menghapus laporan (FK `nullOnDelete`) — snapshot tetap utuh
+  Hapus pelanggan = **soft delete** (data tersembunyi, bisa dipulihkan); force delete dari tampilan
+  terhapus → FK `nullOnDelete` bekerja (customer_id jadi NULL, snapshot tetap utuh)
 - **Foto rumah pelanggan** disimpan di disk `public` (`storage:link` wajib aktif); upload/hapus di
   detail pelanggan (Fase 1 web). Skema `customer_photos.uploaded_by` sudah siap untuk upload dari
   Android (Fase 2) tanpa ubah tabel

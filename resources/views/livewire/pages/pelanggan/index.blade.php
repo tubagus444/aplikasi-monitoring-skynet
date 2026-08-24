@@ -18,9 +18,13 @@ new #[Layout('layouts.app')] class extends Component
     public string $search = '';
     public string $filterStatus = '';
 
+    // Toggle tampilan pelanggan terhapus (soft-deleted)
+    public bool $showTrashed = false;
+
     // Modal state
     public bool $showFormModal = false;
     public bool $showDeleteModal = false;
+    public bool $showForceDeleteModal = false;
     public ?int $editingId = null;
     public ?int $deletingId = null;
     public ?string $deletingName = null;
@@ -45,9 +49,23 @@ new #[Layout('layouts.app')] class extends Component
     public function customers()
     {
         // Filter dipusatkan di scope Customer::filtered (dipakai bersama ekspor PDF/Excel).
-        return Customer::with('internetPackage')
+        $query = Customer::with('internetPackage');
+
+        // Tampilan terhapus: hanya pelanggan soft-deleted
+        if ($this->showTrashed) {
+            $query->onlyTrashed();
+        }
+
+        return $query
             ->filtered($this->search, $this->filterStatus)
             ->paginate(10);
+    }
+
+    /** Jumlah pelanggan terhapus — ditampilkan di badge toggle. */
+    #[Computed]
+    public function trashedCount(): int
+    {
+        return Customer::onlyTrashed()->count();
     }
 
     /** Daftar paket internet untuk dropdown form. */
@@ -58,6 +76,14 @@ new #[Layout('layouts.app')] class extends Component
             ->get()
             ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name . ' — Rp ' . number_format($p->price ?? 0, 0, ',', '.')])
             ->toArray();
+    }
+
+    /** Toggle tampilan pelanggan terhapus. */
+    public function toggleTrashed(): void
+    {
+        $this->showTrashed = ! $this->showTrashed;
+        $this->resetPage();
+        unset($this->customers, $this->trashedCount);
     }
 
     public function openCreate(): void
@@ -130,16 +156,55 @@ new #[Layout('layouts.app')] class extends Component
         $this->showDeleteModal = true;
     }
 
+    /**
+     * Soft delete pelanggan — data disembunyikan dari daftar utama tapi masih
+     * ada di database. Admin bisa memulihkan lewat tampilan "Pelanggan Terhapus".
+     * Relasi (damage_reports.customer_id, customer_photos) tetap utuh karena
+     * baris pelanggan masih ada di database.
+     */
     public function deleteCustomer(): void
     {
-        // Hapus pelanggan TIDAK menghapus laporan (FK nullOnDelete): customer_id jadi
-        // NULL, snapshot nama/alamat di laporan tetap tampil di riwayat & PDF.
         Customer::findOrFail($this->deletingId)->delete();
         $this->showDeleteModal = false;
         $this->deletingId = null;
         $this->deletingName = null;
-        unset($this->customers);
-        $this->success('Pelanggan berhasil dihapus.');
+        unset($this->customers, $this->trashedCount);
+        $this->success('Pelanggan berhasil dihapus. Data dapat dipulihkan dari tampilan "Pelanggan Terhapus".');
+    }
+
+    /** Pulihkan pelanggan yang sudah di-soft-delete. */
+    public function restoreCustomer(int $id): void
+    {
+        Customer::onlyTrashed()->findOrFail($id)->restore();
+        unset($this->customers, $this->trashedCount);
+        $this->success('Pelanggan berhasil dipulihkan.');
+    }
+
+    /** Konfirmasi hapus permanen (force delete) — hanya dari tampilan terhapus. */
+    public function confirmForceDelete(int $id): void
+    {
+        $customer = Customer::onlyTrashed()->find($id);
+        if (! $customer) {
+            return;
+        }
+        $this->deletingId = $id;
+        $this->deletingName = $customer->name;
+        $this->showForceDeleteModal = true;
+    }
+
+    /**
+     * Hapus permanen pelanggan — data benar-benar hilang dari database.
+     * FK nullOnDelete di damage_reports akan mengeset customer_id → NULL
+     * (snapshot customer_name/address tetap utuh).
+     */
+    public function forceDeleteCustomer(): void
+    {
+        Customer::onlyTrashed()->findOrFail($this->deletingId)->forceDelete();
+        $this->showForceDeleteModal = false;
+        $this->deletingId = null;
+        $this->deletingName = null;
+        unset($this->customers, $this->trashedCount);
+        $this->success('Pelanggan berhasil dihapus permanen.');
     }
 
     public function resetForm(): void
@@ -165,32 +230,34 @@ new #[Layout('layouts.app')] class extends Component
 <div>
     <x-mary-header title="Pelanggan" separator class="mb-6!">
         <x-slot:actions>
-            {{-- Ekspor mengikuti filter (search + status) yang sedang aktif --}}
-            <x-dropdown label="Ekspor" icon="o-document-arrow-down" class="btn-ghost btn-sm rounded-full" right>
-                <li>
-                    <a
-                        href="{{ route('customers.export.pdf', ['search' => $search, 'status' => $filterStatus]) }}"
-                        target="_blank"
-                        class="flex items-center gap-2"
-                    >
-                        <x-mary-icon name="o-document-text" class="w-4 h-4" /> PDF
-                    </a>
-                </li>
-                <li>
-                    <a
-                        href="{{ route('customers.export.excel', ['search' => $search, 'status' => $filterStatus]) }}"
-                        class="flex items-center gap-2"
-                    >
-                        <x-mary-icon name="o-table-cells" class="w-4 h-4" /> Excel
-                    </a>
-                </li>
-            </x-dropdown>
-            <x-mary-button
-                icon="o-plus"
-                label="Tambah Pelanggan"
-                class="btn-primary btn-sm rounded-full"
-                wire:click="openCreate"
-            />
+            @unless($showTrashed)
+                {{-- Ekspor mengikuti filter (search + status) yang sedang aktif --}}
+                <x-dropdown label="Ekspor" icon="o-document-arrow-down" class="btn-ghost btn-sm rounded-full" right>
+                    <li>
+                        <a
+                            href="{{ route('customers.export.pdf', ['search' => $search, 'status' => $filterStatus]) }}"
+                            target="_blank"
+                            class="flex items-center gap-2"
+                        >
+                            <x-mary-icon name="o-document-text" class="w-4 h-4" /> PDF
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="{{ route('customers.export.excel', ['search' => $search, 'status' => $filterStatus]) }}"
+                            class="flex items-center gap-2"
+                        >
+                            <x-mary-icon name="o-table-cells" class="w-4 h-4" /> Excel
+                        </a>
+                    </li>
+                </x-dropdown>
+                <x-mary-button
+                    icon="o-plus"
+                    label="Tambah Pelanggan"
+                    class="btn-primary btn-sm rounded-full"
+                    wire:click="openCreate"
+                />
+            @endunless
         </x-slot:actions>
     </x-mary-header>
 
@@ -202,11 +269,36 @@ new #[Layout('layouts.app')] class extends Component
             icon="o-magnifying-glass"
             class="input-sm w-64 rounded-full"
         />
-        <x-filter-chips :options="['' => 'Semua'] + \App\Enums\CustomerStatus::options()" field="filterStatus" :selected="$filterStatus" />
+        @unless($showTrashed)
+            <x-filter-chips :options="['' => 'Semua'] + \App\Enums\CustomerStatus::options()" field="filterStatus" :selected="$filterStatus" />
+        @endunless
+
+        {{-- Toggle tampilan terhapus --}}
+        <button
+            wire:click="toggleTrashed"
+            class="btn btn-sm rounded-full {{ $showTrashed ? 'btn-warning' : 'btn-ghost' }} ml-auto"
+        >
+            <x-mary-icon name="{{ $showTrashed ? 'o-arrow-uturn-left' : 'o-archive-box' }}" class="w-4 h-4" />
+            {{ $showTrashed ? 'Kembali ke Daftar Aktif' : 'Pelanggan Terhapus' }}
+            @if(! $showTrashed && $this->trashedCount > 0)
+                <span class="badge badge-warning badge-sm">{{ $this->trashedCount }}</span>
+            @endif
+        </button>
     </div>
 
+    {{-- Banner tampilan terhapus --}}
+    @if($showTrashed)
+        <div class="alert alert-warning mb-4 rounded-xl">
+            <x-mary-icon name="o-archive-box" class="w-5 h-5" />
+            <div>
+                <p class="font-semibold text-sm">Tampilan Pelanggan Terhapus</p>
+                <p class="text-xs opacity-80">Pelanggan di daftar ini sudah dihapus. Anda dapat memulihkan atau menghapus permanen.</p>
+            </div>
+        </div>
+    @endif
+
     {{-- Tabel --}}
-    <x-table-card :rows="$this->customers" empty-icon="o-identification" empty-text="Tidak ada pelanggan ditemukan">
+    <x-table-card :rows="$this->customers" empty-icon="o-identification" :empty-text="$showTrashed ? 'Tidak ada pelanggan terhapus' : 'Tidak ada pelanggan ditemukan'">
         <x-slot:head>
             <th class="w-12">#</th>
             <th>Nama</th>
@@ -215,11 +307,14 @@ new #[Layout('layouts.app')] class extends Component
             <th>IP</th>
             <th>Paket</th>
             <th>Status</th>
+            @if($showTrashed)
+                <th>Dihapus</th>
+            @endif
             <th class="w-20">Aksi</th>
         </x-slot:head>
 
         @foreach($this->customers as $customer)
-            <tr class="hover:bg-base-200 transition-colors">
+            <tr class="hover:bg-base-200 transition-colors {{ $showTrashed ? 'opacity-70' : '' }}">
                 <td class="text-base-content/40 text-xs">{{ $customer->id }}</td>
                 <td>
                     <div class="flex items-center gap-2">
@@ -258,28 +353,51 @@ new #[Layout('layouts.app')] class extends Component
                         {{ $statusLabel }}
                     </span>
                 </td>
+                @if($showTrashed)
+                    <td class="text-xs text-base-content/50">
+                        {{ $customer->deleted_at?->diffForHumans() }}
+                    </td>
+                @endif
                 <td>
                     <div class="flex gap-1">
-                        <a
-                            href="{{ route('customers.show', $customer) }}"
-                            wire:navigate
-                            class="btn btn-ghost btn-xs rounded-full"
-                            title="Lihat Detail"
-                        >
-                            <x-mary-icon name="o-eye" class="w-4 h-4" />
-                        </a>
-                        <x-mary-button
-                            icon="o-pencil"
-                            class="btn-ghost btn-xs rounded-full"
-                            wire:click="openEdit({{ $customer->id }})"
-                            tooltip="Edit"
-                        />
-                        <x-mary-button
-                            icon="o-trash"
-                            class="btn-ghost btn-xs rounded-full text-error"
-                            wire:click="confirmDelete({{ $customer->id }})"
-                            tooltip="Hapus"
-                        />
+                        @if($showTrashed)
+                            {{-- Tampilan terhapus: Pulihkan & Hapus Permanen --}}
+                            <x-mary-button
+                                icon="o-arrow-uturn-left"
+                                class="btn-ghost btn-xs rounded-full text-success"
+                                wire:click="restoreCustomer({{ $customer->id }})"
+                                tooltip="Pulihkan"
+                                spinner="restoreCustomer({{ $customer->id }})"
+                            />
+                            <x-mary-button
+                                icon="o-trash"
+                                class="btn-ghost btn-xs rounded-full text-error"
+                                wire:click="confirmForceDelete({{ $customer->id }})"
+                                tooltip="Hapus Permanen"
+                            />
+                        @else
+                            {{-- Tampilan normal: Detail, Edit, Hapus (soft delete) --}}
+                            <a
+                                href="{{ route('customers.show', $customer) }}"
+                                wire:navigate
+                                class="btn btn-ghost btn-xs rounded-full"
+                                title="Lihat Detail"
+                            >
+                                <x-mary-icon name="o-eye" class="w-4 h-4" />
+                            </a>
+                            <x-mary-button
+                                icon="o-pencil"
+                                class="btn-ghost btn-xs rounded-full"
+                                wire:click="openEdit({{ $customer->id }})"
+                                tooltip="Edit"
+                            />
+                            <x-mary-button
+                                icon="o-trash"
+                                class="btn-ghost btn-xs rounded-full text-error"
+                                wire:click="confirmDelete({{ $customer->id }})"
+                                tooltip="Hapus"
+                            />
+                        @endif
                     </div>
                 </td>
             </tr>
@@ -388,6 +506,31 @@ new #[Layout('layouts.app')] class extends Component
         </x-slot:actions>
     </x-mary-modal>
 
-    {{-- Modal Konfirmasi Hapus --}}
+    {{-- Modal Konfirmasi Hapus (soft delete) --}}
     <x-confirm-delete-modal title="Hapus Pelanggan" noun="pelanggan" :name="$deletingName" action="deleteCustomer" />
+
+    {{-- Modal Konfirmasi Hapus Permanen (force delete) --}}
+    <x-mary-modal wire:model="showForceDeleteModal" title="Hapus Permanen" separator>
+        <div class="space-y-3">
+            <div class="flex items-start gap-3 p-3 rounded-xl bg-error/10 border border-error/20">
+                <x-mary-icon name="o-exclamation-triangle" class="w-6 h-6 text-error shrink-0 mt-0.5" />
+                <div>
+                    <p class="text-sm font-semibold text-error">Peringatan: Tindakan ini tidak dapat dibatalkan!</p>
+                    <p class="text-xs text-base-content/70 mt-1">
+                        Data pelanggan akan hilang <strong>permanen</strong> dari database dan tidak bisa dipulihkan lagi.
+                        Laporan terkait tetap utuh, tetapi kolom pelanggan akan menjadi kosong (—).
+                    </p>
+                </div>
+            </div>
+            <p class="text-sm text-base-content/70">
+                Yakin ingin menghapus permanen pelanggan
+                <strong class="text-base-content">{{ $deletingName }}</strong>?
+            </p>
+        </div>
+
+        <x-slot:actions>
+            <x-mary-button label="Batal" class="btn-ghost rounded-full" wire:click="$set('showForceDeleteModal', false)" />
+            <x-mary-button label="Ya, Hapus Permanen" class="btn-error rounded-full" wire:click="forceDeleteCustomer" spinner="forceDeleteCustomer" />
+        </x-slot:actions>
+    </x-mary-modal>
 </div>

@@ -33,7 +33,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function customer()
     {
-        return Customer::with([
+        return Customer::withTrashed()->with([
             'photos' => fn ($q) => $q->latest('created_at'),
             'reports' => fn ($q) => $q->with(['damageType', 'taskAssignments.technician'])->latest(),
         ])->findOrFail($this->customerId);
@@ -114,6 +114,17 @@ new #[Layout('layouts.app')] class extends Component
             </a>
         </x-slot:actions>
     </x-mary-header>
+
+    {{-- Banner peringatan jika pelanggan sudah dihapus (soft-deleted) --}}
+    @if($c->trashed())
+        <div class="alert alert-warning mb-6 rounded-xl">
+            <x-mary-icon name="o-archive-box" class="w-5 h-5" />
+            <div>
+                <p class="font-semibold text-sm">Pelanggan ini sudah dihapus</p>
+                <p class="text-xs opacity-80">Dihapus {{ $c->deleted_at->diffForHumans() }}. Buka halaman Pelanggan → Pelanggan Terhapus untuk memulihkan.</p>
+            </div>
+        </div>
+    @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
