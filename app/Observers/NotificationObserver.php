@@ -4,11 +4,12 @@ namespace App\Observers;
 
 use App\Models\Notification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Kreait\Firebase\Contract\Messaging;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification as FcmNotification;
 
-class NotificationObserver
+class NotificationObserver implements ShouldQueue
 {
     public function created(Notification $notification): void
     {
