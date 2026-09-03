@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Enums\NotificationType;
 use App\Enums\ReportCategory;
 use App\Models\DamageReport;
 use App\Models\Notification;
@@ -51,9 +52,11 @@ class SyncReportTechnicians
             ]);
 
             Notification::create([
-                'user_id' => $technicianId,
-                'title'   => 'Tugas Baru Ditugaskan',
-                'body'    => $body,
+                'user_id'    => $technicianId,
+                'title'      => 'Tugas Baru Ditugaskan',
+                'body'       => $body,
+                'type'       => NotificationType::TaskAssigned->value,
+                'related_id' => $report->id,
             ]);
         }
     }

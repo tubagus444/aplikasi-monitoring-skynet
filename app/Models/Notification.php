@@ -12,6 +12,8 @@ class Notification extends Model
         'user_id',
         'title',
         'body',
+        'type',
+        'related_id',
         'is_read',
     ];
 
@@ -27,5 +29,15 @@ class Notification extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Laporan terkait (via related_id). Nullable — notifikasi lama
+     * atau tipe tanpa referensi laporan tidak punya relasi ini.
+     * Juga nullable bila laporan sudah dihapus (bukan FK constrained).
+     */
+    public function report()
+    {
+        return $this->belongsTo(DamageReport::class, 'related_id');
     }
 }

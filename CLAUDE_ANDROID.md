@@ -252,12 +252,19 @@ GET /api/notifications
       "id": 1,
       "title": "Tugas Baru",
       "body": "Anda ditugaskan ke laporan Pak Ahmad di Jl. Mawar No.3",
+      "type": "task_assigned",
+      "related_id": 5,
       "is_read": false,
       "created_at": "2025-06-01T08:00:00+07:00"
     }
   ]
 }
 ```
+
+- **`type`** (nullable string): jenis notifikasi — `"task_assigned"` | `"task_in_progress"` |
+  `"task_completed"`. `null` pada notifikasi lama (sebelum migrasi).
+- **`related_id`** (nullable int): ID laporan (`damage_reports.id`) terkait untuk deep-link.
+  `null` pada notifikasi tanpa referensi laporan atau notifikasi lama.
 
 ### Tandai Sudah Dibaca
 ```
@@ -273,17 +280,24 @@ PUT /api/notifications/{id}/read
 Yang dikirim backend ditentukan oleh `NotificationObserver` (otomatis tiap `Notification::create()`).
 Yang relevan untuk klien:
 
-- Backend mengirim pesan **notification-only** (tanpa blok `data`):
+- Backend mengirim pesan **notification + data** (bila `type`/`related_id` ada):
   ```json
-  { "notification": { "title": "Tugas Baru", "body": "Anda ditugaskan ke ..." } }
+  {
+    "notification": { "title": "Tugas Baru", "body": "Anda ditugaskan ke ..." },
+    "data": { "type": "task_assigned", "related_id": "5" }
+  }
   ```
-- Konsekuensinya, tap notifikasi **tidak** bisa deep-link ke tugas spesifik (tak ada `report_id`
-  di payload). Ini disengaja.
+  Bila `type`/`related_id` null (notifikasi lama), blok `data` **tidak ada** — sama seperti
+  sebelumnya (notification-only). Backward-compatible.
 
-> **Bila kelak ingin deep-link** ("tap notif → buka Detail Tugas"), perubahan **sisi backend**
-> yang diperlukan: tambah `->withData(['report_id' => ..., 'type' => 'task_assigned'])` di
-> `NotificationObserver`. Tabel `notifications` saat ini hanya menyimpan `user_id, title, body,
-> is_read`, jadi sumber `report_id` perlu didesain dulu (lihat juga [CATATAN-FITUR.md](CATATAN-FITUR.md)).
+- **Deep-link dari notifikasi** kini dimungkinkan: baca `related_id` dari blok `data` (selalu
+  string di FCM → parse ke Int), cari task assignment dengan `report_id` == `related_id`, lalu
+  navigasi ke `tasks/{taskId}`. Perubahan Android yang diperlukan:
+  1. Tambah `type: String?` dan `relatedId: Int?` ke model `NotificationResponse`.
+  2. Di `MonitoringFirebaseService.onMessageReceived`: baca `remoteMessage.data["related_id"]`,
+     bangun `PendingIntent` dengan extra `related_id`.
+  3. Di `MainActivity`: baca `intent.extras["related_id"]` untuk navigasi ke detail tugas.
+  4. Di `NotificationScreen`: klik notifikasi dengan `relatedId` → navigasi ke detail tugas.
 
 ---
 

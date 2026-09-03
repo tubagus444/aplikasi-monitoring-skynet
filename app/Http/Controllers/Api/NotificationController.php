@@ -18,6 +18,8 @@ class NotificationController extends Controller
                 'id'         => $n->id,
                 'title'      => $n->title,
                 'body'       => $n->body,
+                'type'       => $n->type,
+                'related_id' => $n->related_id,
                 'is_read'    => $n->is_read,
                 'created_at' => $n->created_at->toIso8601String(),
             ]);

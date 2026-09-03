@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\NotificationType;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +32,7 @@ class NotificationApiTest extends TestCase
 
         $response->assertOk()
             ->assertJsonStructure([
-                'data' => [['id', 'title', 'body', 'is_read', 'created_at']],
+                'data' => [['id', 'title', 'body', 'type', 'related_id', 'is_read', 'created_at']],
             ]);
         $this->assertCount(2, $response->json('data'));
     }
@@ -72,5 +73,35 @@ class NotificationApiTest extends TestCase
         $this->actingAs($teknisi, 'sanctum')
             ->putJson("/api/notifications/{$notifikasi->id}/read")
             ->assertNotFound();
+    }
+
+    public function test_notifikasi_mengandung_type_dan_related_id(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+        $this->buatNotifikasi($teknisi, [
+            'type'       => NotificationType::TaskAssigned->value,
+            'related_id' => 42,
+        ]);
+
+        $response = $this->actingAs($teknisi, 'sanctum')->getJson('/api/notifications');
+
+        $response->assertOk();
+        $item = $response->json('data.0');
+        $this->assertEquals('task_assigned', $item['type']);
+        $this->assertEquals(42, $item['related_id']);
+    }
+
+    public function test_notifikasi_lama_tanpa_type_tetap_tampil(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+        // Notifikasi tanpa type/related_id (backward-compatible)
+        $this->buatNotifikasi($teknisi);
+
+        $response = $this->actingAs($teknisi, 'sanctum')->getJson('/api/notifications');
+
+        $response->assertOk();
+        $item = $response->json('data.0');
+        $this->assertNull($item['type']);
+        $this->assertNull($item['related_id']);
     }
 }

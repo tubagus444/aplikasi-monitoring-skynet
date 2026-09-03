@@ -69,7 +69,7 @@ DB_PASSWORD=
 | `task_assignments` | Penugasan teknisi ke laporan |
 | `work_logs` | Log aktivitas pekerjaan teknisi |
 | `location_logs` | Log koordinat GPS teknisi (realtime) |
-| `notifications` | Notifikasi untuk teknisi |
+| `notifications` | Notifikasi untuk teknisi **dan admin**; kolom `type` (enum `NotificationType`) + `related_id` (referensi `damage_reports.id`, nullable, bukan FK constrained) untuk deep-link |
 | `personal_access_tokens` | Token Sanctum untuk Android |
 | `cache` | Laravel cache |
 | `cache_locks` | Laravel cache locks |
@@ -104,12 +104,13 @@ Ditugaskan → Sedang Memperbaiki (GPS aktif) → Selesai (GPS berhenti)
 1. Dashboard — stat cards data nyata + laporan terbaru
 2. Manajemen Laporan — full CRUD + filter + search + assign teknisi + **pemilih kategori** (pelanggan vs jaringan/pemeliharaan)
 3. Monitoring GPS — Leaflet.js realtime, polling 10 detik
-4. Riwayat — laporan selesai + filter periode + **filter kategori** + detail modal + **ekspor PDF** (mode ringkasan & lengkap, ikut filter kategori)
-5. Pengguna — full CRUD admin & teknisi
-6. Pelanggan — full CRUD + filter status + search + **detail** (galeri foto rumah + ringkasan + riwayat perbaikan per pelanggan) + **ekspor PDF & Excel** + **soft delete** (hapus = sembunyikan, bisa pulihkan; force delete dari tampilan terhapus)
-7. Statistik — analitik read-only: pecahan laporan per kategori, rata-rata durasi penanganan, **tren komplain 12 bulan (Chart.js)**, kinerja per teknisi, kerusakan tersering (top 5)
-8. Jenis Gangguan — full CRUD master data jenis gangguan/pekerjaan (`damage_types`) + search + kolom "Dipakai" (jumlah laporan). Hapus jenis = `nullOnDelete` (laporan utuh, kolomnya jadi NULL/"—")
-9. Paket Internet — full CRUD master data paket internet (`internet_packages`) + search + kolom "Dipakai" (jumlah pelanggan) + harga + kecepatan. Hapus paket = `nullOnDelete` (pelanggan utuh, kolomnya jadi NULL/"—")
+4. **Notifikasi** — daftar notifikasi admin (aktivitas teknisi), polling 30 detik, tandai dibaca / tandai semua dibaca, klik → navigasi ke laporan terkait; **badge belum-baca** di sidebar
+5. Riwayat — laporan selesai + filter periode + **filter kategori** + detail modal + **ekspor PDF** (mode ringkasan & lengkap, ikut filter kategori)
+6. Pengguna — full CRUD admin & teknisi
+7. Pelanggan — full CRUD + filter status + search + **detail** (galeri foto rumah + ringkasan + riwayat perbaikan per pelanggan) + **ekspor PDF & Excel** + **soft delete** (hapus = sembunyikan, bisa pulihkan; force delete dari tampilan terhapus)
+8. Statistik — analitik read-only: pecahan laporan per kategori, rata-rata durasi penanganan, **tren komplain 12 bulan (Chart.js)**, kinerja per teknisi, kerusakan tersering (top 5)
+9. Jenis Gangguan — full CRUD master data jenis gangguan/pekerjaan (`damage_types`) + search + kolom "Dipakai" (jumlah laporan). Hapus jenis = `nullOnDelete` (laporan utuh, kolomnya jadi NULL/"—")
+10. Paket Internet — full CRUD master data paket internet (`internet_packages`) + search + kolom "Dipakai" (jumlah pelanggan) + harga + kecepatan. Hapus paket = `nullOnDelete` (pelanggan utuh, kolomnya jadi NULL/"—")
 
 ### Layar Android Teknisi (direncanakan 6 layar)
 
@@ -178,8 +179,11 @@ app/
                         # butuhPelanggan() = apakah kategori wajib customer_id (validasi form);
                         # butuhJenisGangguan() = apakah wajib damage_type_id (true hanya pelanggan;
                         # jaringan/pemeliharaan opsional — pemeliharaan kerap bukan "kerusakan")
+    NotificationType.php # Sumber kebenaran jenis notifikasi (task_assigned/task_in_progress/
+                        # task_completed); label()/icon()/color() untuk UI web admin
   Observers/
-    NotificationObserver.php  # Auto-kirim FCM setiap Notification::create()
+    NotificationObserver.php  # Auto-kirim FCM setiap Notification::create(); menyertakan
+                              # blok data (type + related_id) untuk deep-link Android
 routes/
   web.php               # Volt routes (admin panel) + history/export + customers/export/{pdf,excel}
                         # + statistik + damage-types (CRUD jenis gangguan) + redirect `/`.
@@ -191,6 +195,8 @@ resources/views/livewire/pages/
   dashboard.blade.php
   laporan/index.blade.php   # form punya pemilih kategori + search-select pelanggan (x-choices-offline)
   monitoring.blade.php
+  notifikasi.blade.php       # Daftar notifikasi admin (polling 30s, badge belum-baca, tandai
+                             # dibaca/semua dibaca, klik→navigasi laporan); ikon & warna per tipe
   riwayat.blade.php          # + filter kategori (chip) selain periode/search; ekspor ikut kategori
   statistik.blade.php        # analitik read-only: pecahan kategori + rata-rata durasi + tren bulanan
                              # (Chart.js via @script, canvas di wire:ignore) + kinerja teknisi + top kerusakan
@@ -215,7 +221,9 @@ database/
 config/
   firebase.php          # Konfigurasi kreait/laravel-firebase
 tests/
-  Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest
+  Feature/Api/          # AuthTest, TaskTest, LocationTest, NotificationApiTest,
+                        # AdminNotificationTest (notifikasi admin saat teknisi mulai/selesai tugas;
+                        # idempotent; semua admin terkirim; type task_assigned di SyncReportTechnicians)
   Feature/Web/          # PageRenderTest (smoke halaman admin), StatusPillTest,
                         # SyncReportTechniciansTest,
                         # LaporanFormTest (integrasi save + atomicity rollback + validasi teknisi + nama hapus
@@ -239,7 +247,9 @@ tests/
                         # scope kepemilikan (404)/house-photos non-pelanggan ditolak (422)/repair_photos di detail
                         # PaketInternetCrudTest (CRUD paket internet + nama unik + hapus→pelanggan utuh/kolom NULL
                         # + harga opsional + kecepatan wajib positif)
-                        # (123 test cases, semua pass — 39 API + 84 Web)
+                        # NotifikasiWebTest (halaman notifikasi web admin: render, badge, tandai dibaca,
+                        # tandai semua dibaca, open notification, isolasi antar admin)
+                        # (137 test cases, semua pass — 44 API + 93 Web)
 ```
 
 ## Routes & Endpoint
@@ -361,7 +371,8 @@ tests/
 ## Konvensi Kode
 
 - Komponen UI menggunakan Mary UI — lihat dokumentasi di `robsontenorio/mary`
-- FCM push notification dikirim otomatis via `NotificationObserver` setiap kali `Notification::create()` dipanggil — tidak perlu memanggil FCM manual di tempat lain
+- FCM push notification dikirim otomatis via `NotificationObserver` setiap kali `Notification::create()` dipanggil — tidak perlu memanggil FCM manual di tempat lain. Observer juga menyertakan blok `data` (`type`, `related_id`) untuk deep-link Android (backward-compatible: null → tanpa blok data)
+- **Notifikasi 2 arah:** admin mendapat notifikasi saat teknisi mulai mengerjakan (`task_in_progress`) atau menyelesaikan tugas (`task_completed`) — dibuat di `TaskController::notifyAdmins()`. Admin tidak punya FCM token, jadi notifikasi hanya tampil di web, bukan push ke HP
 - `FIREBASE_CREDENTIALS` di `.env` wajib diisi path ke service account JSON Firebase (file JSON tidak boleh di-commit ke git, sudah ada di `.gitignore`)
 - Halaman interaktif dibuat sebagai Livewire Volt component (bukan controller biasa)
 - Response non-interaktif (ekspor PDF / download file) memakai **controller biasa** di

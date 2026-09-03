@@ -23,9 +23,22 @@ class NotificationObserver implements ShouldQueue
         }
 
         try {
+            // Blok data berisi type & related_id untuk deep-link di Android.
+            // array_filter menghilangkan nilai null/empty → kalau keduanya null
+            // (notifikasi lama atau tanpa referensi), payload sama seperti sebelumnya
+            // (notification-only, tanpa blok data).
+            $data = array_filter([
+                'type'       => $notification->type,
+                'related_id' => $notification->related_id ? (string) $notification->related_id : null,
+            ]);
+
             $message = CloudMessage::new()
                 ->withToken($fcmToken)
                 ->withNotification(FcmNotification::create($notification->title, $notification->body));
+
+            if ($data) {
+                $message = $message->withData($data);
+            }
 
             app(Messaging::class)->send($message);
         } catch (\Throwable $e) {

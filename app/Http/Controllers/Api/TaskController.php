@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\NotificationType;
 use App\Enums\ReportStatus;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerPhoto;
+use App\Models\DamageReport;
+use App\Models\Notification;
 use App\Models\ReportPhoto;
 use App\Models\TaskAssignment;
+use App\Models\User;
 use App\Models\WorkLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -100,6 +105,23 @@ class TaskController extends Controller
                 'status'        => $transition['to']->value,
                 'description'   => $request->input('description'),
             ]);
+
+            // Notifikasi ke semua admin saat teknisi mulai/selesai mengerjakan.
+            if ($transition['to'] === ReportStatus::SedangMemperbaiki) {
+                $this->notifyAdmins(
+                    NotificationType::TaskInProgress,
+                    $report,
+                    $request->user(),
+                    'mulai mengerjakan',
+                );
+            } elseif ($transition['to'] === ReportStatus::Selesai) {
+                $this->notifyAdmins(
+                    NotificationType::TaskCompleted,
+                    $report,
+                    $request->user(),
+                    'menyelesaikan',
+                );
+            }
 
             return response()->json([
                 'message' => 'Status diperbarui',
@@ -237,5 +259,37 @@ class TaskController extends Controller
         }
 
         return $data;
+    }
+
+    /**
+     * Kirim notifikasi ke semua admin saat teknisi mengubah status tugas.
+     * Admin tidak punya FCM token (bukan pengguna Android), jadi
+     * NotificationObserver akan return early — notifikasi hanya tampil
+     * di halaman web admin, bukan push ke HP.
+     */
+    private function notifyAdmins(
+        NotificationType $type,
+        DamageReport $report,
+        User $technician,
+        string $action,
+    ): void {
+        $title = match ($type) {
+            NotificationType::TaskInProgress => 'Teknisi Mulai Mengerjakan',
+            NotificationType::TaskCompleted  => 'Tugas Selesai',
+            default                          => 'Update Tugas',
+        };
+        $body = "{$technician->name} {$action} tugas \"{$report->judul}\" di {$report->address}.";
+
+        $admins = User::where('role', UserRole::Admin->value)->pluck('id');
+
+        foreach ($admins as $adminId) {
+            Notification::create([
+                'user_id'    => $adminId,
+                'title'      => $title,
+                'body'       => $body,
+                'type'       => $type->value,
+                'related_id' => $report->id,
+            ]);
+        }
     }
 }

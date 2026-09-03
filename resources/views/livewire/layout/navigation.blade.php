@@ -1,6 +1,8 @@
 <?php
 
 use App\Livewire\Actions\Logout;
+use App\Models\Notification;
+use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -10,9 +12,17 @@ new class extends Component
         $logout();
         $this->redirect('/', navigate: true);
     }
+
+    #[Computed]
+    public function unreadNotificationCount(): int
+    {
+        return Notification::where('user_id', auth()->id())
+            ->where('is_read', false)
+            ->count();
+    }
 }; ?>
 
-<div class="flex flex-col min-h-screen bg-base-100">
+<div wire:poll.30s>
 
     {{-- Header: logo text (left) + hamburger (right) --}}
     <div class="px-4 py-3 border-b border-base-300 flex items-center">
@@ -37,6 +47,17 @@ new class extends Component
         <x-mary-menu-item title="Dashboard"  icon="o-squares-2x2"       route="dashboard"    />
         <x-mary-menu-item title="Laporan"    icon="o-exclamation-circle" route="reports.index" />
         <x-mary-menu-item title="Monitoring" icon="o-map-pin"            route="monitoring"   />
+
+        {{-- Notifikasi admin: badge belum-baca --}}
+        <x-mary-menu-item title="Notifikasi" icon="o-bell" route="notifikasi">
+            @if($this->unreadNotificationCount > 0)
+                <x-slot:badge>
+                    <span class="badge badge-sm badge-error text-error-content font-bold rounded-full">
+                        {{ $this->unreadNotificationCount > 99 ? '99+' : $this->unreadNotificationCount }}
+                    </span>
+                </x-slot:badge>
+            @endif
+        </x-mary-menu-item>
 
         <x-mary-menu-item title="Statistik"  icon="o-chart-bar"          route="statistik"    />
         <x-mary-menu-item title="Pelanggan"  icon="o-identification"     route="customers.index" />

@@ -127,6 +127,8 @@
 - `user_id` (bigint unsigned, FK → `users.id`, cascadeOnDelete) - Penerima notifikasi
 - `title` (varchar)
 - `body` (text)
+- `type` (varchar, nullable) - Jenis notifikasi (mis. `task_assigned`, `task_in_progress`, `task_completed`)
+- `related_id` (bigint unsigned, nullable) - ID entitas terkait (biasanya `damage_reports.id`) untuk fitur deep-link
 - `is_read` (boolean, default `false`)
 - `created_at` (timestamp, default CURRENT)
 
