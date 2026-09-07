@@ -49,15 +49,13 @@ new class extends Component
         <x-mary-menu-item title="Monitoring" icon="o-map-pin"            route="monitoring"   />
 
         {{-- Notifikasi admin: badge belum-baca --}}
-        <x-mary-menu-item title="Notifikasi" icon="o-bell" route="notifikasi">
-            @if($this->unreadNotificationCount > 0)
-                <x-slot:badge>
-                    <span class="badge badge-sm badge-error text-error-content font-bold rounded-full">
-                        {{ $this->unreadNotificationCount > 99 ? '99+' : $this->unreadNotificationCount }}
-                    </span>
-                </x-slot:badge>
-            @endif
-        </x-mary-menu-item>
+        <x-mary-menu-item
+            title="Notifikasi"
+            icon="o-bell"
+            route="notifikasi"
+            :badge="$this->unreadNotificationCount > 0 ? ($this->unreadNotificationCount > 99 ? '99+' : (string) $this->unreadNotificationCount) : null"
+            badge-classes="!h-5 !min-w-5 !px-1.5 !text-xs !font-bold !rounded-full bg-error text-error-content ms-2 inline-flex items-center justify-center"
+        />
 
         <x-mary-menu-item title="Statistik"  icon="o-chart-bar"          route="statistik"    />
         <x-mary-menu-item title="Pelanggan"  icon="o-identification"     route="customers.index" />
