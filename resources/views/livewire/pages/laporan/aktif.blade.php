@@ -78,7 +78,11 @@ new class extends Component
     #[Computed]
     public function customers()
     {
-        return Customer::orderBy('name')->get();
+        return Customer::orderBy('name')->get()->map(fn ($c) => [
+            'id'      => $c->id,
+            'name'    => ($c->customer_code ? "[{$c->customer_code}] " : '') . $c->name,
+            'address' => $c->address,
+        ]);
     }
 
     /** Apakah kategori terpilih saat ini membutuhkan pelanggan terdaftar? */
@@ -161,6 +165,7 @@ new class extends Component
                 'category'      => $this->category,
                 'customer_id'   => $customer->id,
                 'customer_name' => $customer->name,
+                'customer_ip'   => $customer->ip_address,
                 'title'         => null,
                 'address'       => $customer->address,
             ];
@@ -169,6 +174,7 @@ new class extends Component
                 'category'      => $this->category,
                 'customer_id'   => null,
                 'customer_name' => null,
+                'customer_ip'   => null,
                 'title'         => $this->title,
                 'address'       => $this->address,
             ];

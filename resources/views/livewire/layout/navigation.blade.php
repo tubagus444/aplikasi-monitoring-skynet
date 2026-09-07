@@ -61,6 +61,7 @@ new class extends Component
 
         <x-mary-menu-item title="Statistik"  icon="o-chart-bar"          route="statistik"    />
         <x-mary-menu-item title="Pelanggan"  icon="o-identification"     route="customers.index" />
+        <x-mary-menu-item title="IP Pool"    icon="o-circle-stack"       route="ip-pools.index" />
         <x-mary-menu-item title="Jenis Gangguan" icon="o-wrench-screwdriver" route="damage-types.index" />
         <x-mary-menu-item title="Paket Internet" icon="o-wifi" route="internet-packages.index" />
         <x-mary-menu-item title="Pengguna"   icon="o-users"              route="users.index"  />

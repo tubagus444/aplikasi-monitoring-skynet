@@ -29,13 +29,14 @@ class CustomersExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
 
     public function headings(): array
     {
-        return ['Nama', 'No. HP', 'Alamat', 'IP Address', 'Paket', 'Status', 'Tanggal Pasang'];
+        return ['Kode Pelanggan', 'Nama', 'No. HP', 'Alamat', 'IP Address', 'Paket', 'Status', 'Tanggal Pasang'];
     }
 
     /** @param Customer $customer */
     public function map($customer): array
     {
         return [
+            $customer->customer_code ?? '—',
             $customer->name,
             $customer->phone,
             $customer->address,

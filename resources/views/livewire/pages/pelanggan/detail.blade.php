@@ -34,6 +34,7 @@ new #[Layout('layouts.app')] class extends Component
     public function customer()
     {
         return Customer::withTrashed()->with([
+            'ipPool',
             'photos' => fn ($q) => $q->latest('created_at'),
             'reports' => fn ($q) => $q->with(['damageType', 'taskAssignments.technician'])->latest(),
         ])->findOrFail($this->customerId);
@@ -146,7 +147,12 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="flex items-center gap-3 min-w-0">
                         <x-avatar :placeholder="strtoupper(substr($c->name, 0, 1))" class="w-12! h-12! bg-secondary/10 text-secondary" />
                         <div class="min-w-0">
-                            <h3 class="text-lg font-bold truncate">{{ $c->name }}</h3>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-bold truncate">{{ $c->name }}</h3>
+                                @if($c->customer_code)
+                                    <span class="badge badge-primary badge-outline font-mono text-xs font-semibold">{{ $c->customer_code }}</span>
+                                @endif
+                            </div>
                             <p class="text-sm text-base-content/50">{{ $c->internetPackage?->name ?? 'Paket belum diisi' }}</p>
                         </div>
                     </div>
@@ -158,6 +164,13 @@ new #[Layout('layouts.app')] class extends Component
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                     <div class="flex gap-3">
+                        <x-mary-icon name="o-identification" class="w-4 h-4 text-base-content/40 shrink-0 mt-0.5" />
+                        <div class="min-w-0">
+                            <p class="text-xs text-base-content/40">Kode Pelanggan</p>
+                            <p class="font-mono font-semibold text-primary">{{ $c->customer_code ?? '—' }}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
                         <x-mary-icon name="o-phone" class="w-4 h-4 text-base-content/40 shrink-0 mt-0.5" />
                         <div class="min-w-0">
                             <p class="text-xs text-base-content/40">No. HP / WhatsApp</p>
@@ -168,7 +181,12 @@ new #[Layout('layouts.app')] class extends Component
                         <x-mary-icon name="o-globe-alt" class="w-4 h-4 text-base-content/40 shrink-0 mt-0.5" />
                         <div class="min-w-0">
                             <p class="text-xs text-base-content/40">IP Address</p>
-                            <p class="font-mono">{{ $c->ip_address ?? '—' }}</p>
+                            <p class="font-mono">
+                                {{ $c->ip_address ?? '—' }}
+                                @if($c->ipPool?->segment)
+                                    <span class="text-2xs text-base-content/50 font-sans ml-1">({{ $c->ipPool->segment }})</span>
+                                @endif
+                            </p>
                         </div>
                     </div>
                     <div class="flex gap-3 sm:col-span-2">

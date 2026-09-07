@@ -225,6 +225,7 @@ class TaskController extends Controller
             'notes'        => $report->notes,
             'assigned_at'  => $assignment->assigned_at?->toIso8601String(),
             // Kontak & info teknis pelanggan — null untuk laporan non-pelanggan.
+            'customer_code'        => $customer?->customer_code,
             'phone'                => $customer?->phone,
             'ip_address'           => $customer?->ip_address,
             'subscription_package' => $customer?->internetPackage?->name,

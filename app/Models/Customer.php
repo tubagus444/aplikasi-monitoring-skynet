@@ -12,16 +12,62 @@ class Customer extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'customer_code',
         'name',
         'phone',
         'address',
         'ip_address',
+        'ip_pool_id',
         'internet_package_id',
         'status',
         'latitude',
         'longitude',
         'installed_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Customer $customer) {
+            if (empty($customer->customer_code)) {
+                $customer->customer_code = static::generateNextCode();
+            }
+        });
+
+        // Otomatis lepaskan IP Pool kembali menjadi 'tersedia' saat pelanggan di-soft-delete atau dihapus
+        static::deleted(function (Customer $customer) {
+            if ($customer->ip_pool_id) {
+                $customer->ipPool?->release();
+                $customer->updateQuietly([
+                    'ip_pool_id' => null,
+                    'ip_address' => null,
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Generate kode pelanggan berikutnya berformat SKY-0001, SKY-0002, dst.
+     * Mengikutsertakan pelanggan yang di-soft-delete (withTrashed) agar nomor tidak pernah terduplikasi.
+     */
+    public static function generateNextCode(): string
+    {
+        $codes = static::withTrashed()
+            ->whereNotNull('customer_code')
+            ->where('customer_code', 'like', 'SKY-%')
+            ->pluck('customer_code');
+
+        $maxNumber = 0;
+        foreach ($codes as $code) {
+            if (preg_match('/^SKY-(\d+)$/', $code, $matches)) {
+                $num = (int) $matches[1];
+                if ($num > $maxNumber) {
+                    $maxNumber = $num;
+                }
+            }
+        }
+
+        return sprintf('SKY-%04d', $maxNumber + 1);
+    }
 
     protected function casts(): array
     {
@@ -41,7 +87,8 @@ class Customer extends Model
     {
         return $query
             ->when($search, fn ($q) => $q->where(fn ($w) =>
-                $w->where('name', 'like', "%{$search}%")
+                $w->where('customer_code', 'like', "%{$search}%")
+                  ->orWhere('name', 'like', "%{$search}%")
                   ->orWhere('phone', 'like', "%{$search}%")
                   ->orWhere('address', 'like', "%{$search}%")
                   ->orWhere('ip_address', 'like', "%{$search}%")
@@ -74,5 +121,11 @@ class Customer extends Model
     public function internetPackage()
     {
         return $this->belongsTo(InternetPackage::class, 'internet_package_id');
+    }
+
+    /** Master data IP Pool yang dialokasikan untuk pelanggan ini. */
+    public function ipPool()
+    {
+        return $this->belongsTo(IpPool::class, 'ip_pool_id');
     }
 }

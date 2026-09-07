@@ -1,9 +1,12 @@
 <?php
 
 use App\Enums\CustomerStatus;
+use App\Enums\IpPoolStatus;
 use App\Livewire\Concerns\WithTableFilters;
 use App\Models\Customer;
 use App\Models\InternetPackage;
+use App\Models\IpPool;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -30,10 +33,12 @@ new #[Layout('layouts.app')] class extends Component
     public ?string $deletingName = null;
 
     // Form fields ('?string' untuk field opsional: dinormalisasi '' → null di save())
+    public ?string $customer_code = '';
     public string $name = '';
     public string $phone = '';
     public string $address = '';
     public ?string $ip_address = '';
+    public ?int $ip_pool_id = null;
     public ?int $internet_package_id = null;
     public string $status = '';
     public ?string $latitude = '';
@@ -78,6 +83,30 @@ new #[Layout('layouts.app')] class extends Component
             ->toArray();
     }
 
+    /** Daftar IP tersedia dari IP Pool (ditambah IP pelanggan saat ini jika edit). */
+    #[Computed]
+    public function ipPoolOptions(): array
+    {
+        $query = IpPool::query()
+            ->where(function ($q) {
+                $q->where('status', IpPoolStatus::Tersedia->value);
+                if ($this->editingId && $this->ip_pool_id) {
+                    $q->orWhere('id', $this->ip_pool_id);
+                }
+            });
+
+        if (DB::connection()->getDriverName() === 'mysql') {
+            $query->orderByRaw('INET_ATON(ip_address) ASC');
+        } else {
+            $query->orderBy('ip_address', 'asc');
+        }
+
+        return $query->get()->map(fn ($p) => [
+            'id'   => $p->id,
+            'name' => $p->ip_address . ($p->segment ? " ({$p->segment})" : '') . ($p->id === $this->ip_pool_id ? ' — IP Saat ini' : ''),
+        ])->toArray();
+    }
+
     /** Toggle tampilan pelanggan terhapus. */
     public function toggleTrashed(): void
     {
@@ -97,9 +126,11 @@ new #[Layout('layouts.app')] class extends Component
     {
         $customer = Customer::findOrFail($id);
         $this->editingId = $id;
+        $this->customer_code = $customer->customer_code ?? '';
         $this->name = $customer->name;
         $this->phone = $customer->phone;
         $this->address = $customer->address;
+        $this->ip_pool_id = $customer->ip_pool_id;
         $this->ip_address = $customer->ip_address ?? '';
         $this->internet_package_id = $customer->internet_package_id;
         $this->status = $customer->status;
@@ -113,17 +144,39 @@ new #[Layout('layouts.app')] class extends Component
     public function save(): void
     {
         // Normalisasi field opsional: '' (input kosong) → null sebelum validasi/simpan
-        // agar aturan nullable|numeric/date tidak menolak string kosong.
         foreach (['ip_address', 'latitude', 'longitude', 'installed_at'] as $opt) {
             if ($this->{$opt} === '') {
                 $this->{$opt} = null;
             }
         }
 
+        if ($this->ip_pool_id === '' || $this->ip_pool_id === 0) {
+            $this->ip_pool_id = null;
+        }
+
+        // Sinkronisasi: jika ip_pool_id dipilih, ip_address mengikuti pool
+        if (! empty($this->ip_pool_id)) {
+            $pool = IpPool::find($this->ip_pool_id);
+            if ($pool) {
+                $this->ip_address = $pool->ip_address;
+            }
+        } elseif (! empty($this->ip_address)) {
+            // Jika ip_address diisi langsung (misal di test/seeder), kaitkan atau buatkan pool-nya
+            $pool = IpPool::firstOrCreate(
+                ['ip_address' => $this->ip_address],
+                ['status' => IpPoolStatus::Tersedia->value, 'segment' => 'Default']
+            );
+            $this->ip_pool_id = $pool->id;
+        } else {
+            $this->ip_address = null;
+            $this->ip_pool_id = null;
+        }
+
         $data = $this->validate([
             'name'                 => 'required|string|max:255',
             'phone'                => 'required|string|max:30',
             'address'              => 'required|string|max:255',
+            'ip_pool_id'           => 'nullable|exists:ip_pools,id',
             'ip_address'           => 'nullable|string|max:45',
             'internet_package_id'  => 'nullable|exists:internet_packages,id',
             'status'               => 'required|in:' . implode(',', CustomerStatus::values()),
@@ -132,11 +185,29 @@ new #[Layout('layouts.app')] class extends Component
             'installed_at'         => 'nullable|date',
         ]);
 
-        if ($this->editingId) {
-            Customer::findOrFail($this->editingId)->update($data);
-        } else {
-            Customer::create($data);
-        }
+        $data['ip_address'] = $this->ip_address;
+        $data['ip_pool_id'] = $this->ip_pool_id;
+
+        DB::transaction(function () use ($data) {
+            if ($this->editingId) {
+                $customer = Customer::findOrFail($this->editingId);
+                $oldPoolId = $customer->ip_pool_id;
+                $customer->update($data);
+
+                // Jika alokasi IP pool berubah: lepaskan IP lama, kunci IP baru
+                if ($oldPoolId && $oldPoolId != $customer->ip_pool_id) {
+                    IpPool::find($oldPoolId)?->release();
+                }
+                if ($customer->ip_pool_id) {
+                    $customer->ipPool?->allocateTo($customer);
+                }
+            } else {
+                $customer = Customer::create($data);
+                if ($customer->ip_pool_id) {
+                    $customer->ipPool?->allocateTo($customer);
+                }
+            }
+        });
 
         $this->showFormModal = false;
         unset($this->customers);
@@ -209,10 +280,12 @@ new #[Layout('layouts.app')] class extends Component
 
     public function resetForm(): void
     {
+        $this->customer_code = '';
         $this->name = '';
         $this->phone = '';
         $this->address = '';
         $this->ip_address = '';
+        $this->ip_pool_id = null;
         $this->internet_package_id = null;
         $this->status = CustomerStatus::Aktif->value;
         $this->latitude = '';
@@ -265,7 +338,7 @@ new #[Layout('layouts.app')] class extends Component
     <div class="flex flex-wrap items-center gap-3 mb-4">
         <x-mary-input
             wire:model.live.debounce="search"
-            placeholder="Cari nama, HP, alamat, IP, atau paket..."
+            placeholder="Cari kode, nama, HP, alamat, IP, atau paket..."
             icon="o-magnifying-glass"
             class="input-sm w-64 rounded-full"
         />
@@ -301,6 +374,7 @@ new #[Layout('layouts.app')] class extends Component
     <x-table-card :rows="$this->customers" empty-icon="o-identification" :empty-text="$showTrashed ? 'Tidak ada pelanggan terhapus' : 'Tidak ada pelanggan ditemukan'">
         <x-slot:head>
             <th class="w-12">#</th>
+            <th class="w-28">Kode</th>
             <th>Nama</th>
             <th>No. HP</th>
             <th>Alamat</th>
@@ -316,6 +390,9 @@ new #[Layout('layouts.app')] class extends Component
         @foreach($this->customers as $customer)
             <tr class="hover:bg-base-200 transition-colors {{ $showTrashed ? 'opacity-70' : '' }}">
                 <td class="text-base-content/40 text-xs">{{ $customer->id }}</td>
+                <td class="font-mono text-xs font-semibold text-primary/80">
+                    {{ $customer->customer_code ?? '—' }}
+                </td>
                 <td>
                     <div class="flex items-center gap-2">
                         <x-avatar
@@ -406,6 +483,25 @@ new #[Layout('layouts.app')] class extends Component
 
     {{-- Modal Buat / Edit Pelanggan --}}
     <x-mary-modal wire:model="showFormModal" :title="$editingId ? 'Edit Pelanggan' : 'Tambah Pelanggan'" separator>
+        {{-- Kode Pelanggan --}}
+        <div class="mb-4">
+            @if($editingId)
+                <x-mary-input
+                    label="Kode Pelanggan"
+                    wire:model="customer_code"
+                    icon="o-identification"
+                    readonly
+                    class="font-mono bg-base-200 cursor-not-allowed"
+                    hint="Nomor unik pelanggan yang di-generate otomatis oleh sistem"
+                />
+            @else
+                <div class="alert alert-info py-2 px-3 text-xs rounded-xl flex items-center gap-2">
+                    <x-mary-icon name="o-information-circle" class="w-4 h-4 shrink-0" />
+                    <span>Kode pelanggan (format: <strong class="font-mono">SKY-xxxx</strong>) akan otomatis dibuat oleh sistem saat disimpan.</span>
+                </div>
+            @endif
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <x-mary-input
                 label="Nama Pelanggan"
@@ -434,12 +530,15 @@ new #[Layout('layouts.app')] class extends Component
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <x-mary-input
-                label="IP Address"
-                wire:model="ip_address"
-                placeholder="192.168.x.x (opsional)"
+            <x-select
+                label="Alamat IP (dari IP Pool)"
+                wire:model="ip_pool_id"
+                :options="$this->ipPoolOptions"
+                option-value="id"
+                option-label="name"
+                placeholder="Pilih IP dari pool (opsional)"
                 icon="o-globe-alt"
-                hint="Pengganti kode pelanggan"
+                hint="Dikelola di menu Master Data IP Pool"
             />
             <x-select
                 label="Paket Internet"

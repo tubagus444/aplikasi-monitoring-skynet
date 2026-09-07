@@ -17,6 +17,7 @@ class DamageReport extends Model
         'category',
         'customer_id',
         'customer_name',
+        'customer_ip',
         'title',
         'address',
         'notes',

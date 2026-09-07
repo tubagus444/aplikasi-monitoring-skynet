@@ -73,4 +73,14 @@ class PelangganExportTest extends TestCase
         $this->assertCount(1, $isolir);
         $this->assertSame('Bu Sari Isolir', $isolir->first()->name);
     }
+
+    public function test_excel_export_menyertakan_customer_code(): void
+    {
+        $customer = Customer::factory()->create(['name' => 'Testing Export']);
+        $export = new CustomersExport();
+
+        $this->assertContains('Kode Pelanggan', $export->headings());
+        $mapped = $export->map($customer);
+        $this->assertSame($customer->customer_code, $mapped[0]);
+    }
 }

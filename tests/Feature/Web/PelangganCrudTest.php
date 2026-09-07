@@ -44,6 +44,7 @@ class PelangganCrudTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('customers', [
+            'customer_code'       => 'SKY-0001',
             'name'                => 'Pak Hendra',
             'phone'               => '081234567890',
             'ip_address'          => '192.168.10.5',
@@ -249,5 +250,35 @@ class PelangganCrudTest extends TestCase
         $rows = Volt::test('pages.pelanggan.index')->get('customers');
         $this->assertCount(1, $rows);
         $this->assertSame('Tampil', $rows->first()->name);
+    }
+
+    public function test_customer_code_otomatis_terbuat_dan_tidak_duplikasi_saat_soft_delete(): void
+    {
+        $c1 = Customer::factory()->create();
+        $this->assertSame('SKY-0001', $c1->customer_code);
+
+        $c2 = Customer::factory()->create();
+        $this->assertSame('SKY-0002', $c2->customer_code);
+
+        // Hapus soft delete c2
+        $c2->delete();
+
+        // Buat pelanggan ke-3, harus SKY-0003 bukan menimpa SKY-0002
+        $c3 = Customer::factory()->create();
+        $this->assertSame('SKY-0003', $c3->customer_code);
+    }
+
+    public function test_pencarian_dengan_customer_code(): void
+    {
+        Customer::factory()->create(['name' => 'Budi', 'customer_code' => 'SKY-0010']);
+        Customer::factory()->create(['name' => 'Andi', 'customer_code' => 'SKY-0011']);
+
+        $rows = Volt::test('pages.pelanggan.index')
+            ->set('search', 'SKY-0010')
+            ->get('customers');
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('Budi', $rows->first()->name);
+        $this->assertSame('SKY-0010', $rows->first()->customer_code);
     }
 }

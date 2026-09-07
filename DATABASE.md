@@ -16,10 +16,12 @@
 
 ## Tabel: customers *(SoftDeletes)*
 - `id` (bigint unsigned, PK, auto-increment)
+- `customer_code` (varchar(20), Unique) - Nomor pelanggan unik auto-generate (format: `SKY-0001`)
 - `name` (varchar)
 - `phone` (varchar)
 - `address` (varchar)
-- `ip_address` (varchar, nullable) - IP pelanggan sebagai pengganti kode pelanggan (identitas SkyNet)
+- `ip_address` (varchar, nullable) - IP perangkat pelanggan (opsional)
+- `ip_pool_id` (bigint unsigned, FK → `ip_pools.id`, nullable, nullOnDelete) - Alokasi master data IP Pool
 - `internet_package_id` (bigint unsigned, FK → `internet_packages.id`, nullable, nullOnDelete) - Paket internet pelanggan; NULL jika paket dihapus atau belum diisi
 - `status` (enum: `aktif`|`isolir`|`berhenti`, default `aktif`)
 - `latitude` (decimal(10,8), nullable) - Koordinat rumah pelanggan
@@ -57,6 +59,18 @@
 
 ---
 
+## Tabel: ip_pools
+- `id` (bigint unsigned, PK, auto-increment)
+- `ip_address` (varchar(45), Unique) - Alamat IPv4
+- `segment` (varchar(50), nullable) - Segmen jaringan / area (mis. "Cluster Cibitung", "192.168.10.0/24")
+- `status` (enum: `tersedia`|`terpakai`|`reserved`, default `tersedia`) - Status alokasi IP
+- `customer_id` (bigint unsigned, FK → `customers.id`, nullable, nullOnDelete) - Pelanggan pemegang IP (NULL jika tersedia/reserved)
+- `notes` (varchar(255), nullable) - Catatan perangkat (mis. "Gateway MikroTik")
+- `created_at` (timestamp, nullable)
+- `updated_at` (timestamp, nullable)
+
+---
+
 ## Tabel: damage_types
 - `id` (bigint unsigned, PK, auto-increment)
 - `name` (varchar) - Nama jenis gangguan
@@ -74,6 +88,7 @@
 - `customer_id` (bigint unsigned, FK → `customers.id`, nullable, nullOnDelete) - Pelanggan terkait (hanya untuk kategori `pelanggan`)
 - `title` (varchar, nullable) - Judul laporan untuk kategori non-pelanggan
 - `customer_name` (varchar, nullable) - Snapshot nama pelanggan saat laporan dibuat (tidak berubah walau data pelanggan diperbarui)
+- `customer_ip` (varchar, nullable) - Snapshot IP pelanggan saat laporan dibuat (audit trail riwayat koneksi)
 - `address` (varchar) - Snapshot alamat
 - `notes` (text, nullable) - Catatan tambahan
 - `status` (enum: `ditugaskan`|`sedang_memperbaiki`|`selesai`, default `ditugaskan`)

@@ -20,10 +20,11 @@
     }
     table.data tbody tr:nth-child(even) td { background: #f8fafc; }
     table.data .col-no { width: 28px; text-align: center; color: #94a3b8; }
-    table.data .col-ip { width: 95px; }
-    table.data .col-pkt { width: 70px; }
-    table.data .col-sts { width: 70px; }
-    table.data .col-tgl { width: 80px; }
+    table.data .col-code { width: 60px; font-weight: bold; }
+    table.data .col-ip { width: 90px; }
+    table.data .col-pkt { width: 65px; }
+    table.data .col-sts { width: 65px; }
+    table.data .col-tgl { width: 75px; }
 @endsection
 
 @section('meta')
@@ -47,6 +48,7 @@
             <thead>
                 <tr>
                     <th class="col-no">#</th>
+                    <th class="col-code">Kode</th>
                     <th>Nama</th>
                     <th>No. HP</th>
                     <th>Alamat</th>
@@ -69,6 +71,7 @@
                     @endphp
                     <tr>
                         <td class="col-no">{{ $i + 1 }}</td>
+                        <td class="col-code">{{ $customer->customer_code ?? '—' }}</td>
                         <td>{{ $customer->name }}</td>
                         <td>{{ $customer->phone ?: '—' }}</td>
                         <td>{{ $customer->address }}</td>

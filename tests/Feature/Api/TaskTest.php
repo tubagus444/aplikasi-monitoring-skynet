@@ -86,6 +86,7 @@ class TaskTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.category', ReportCategory::Pelanggan->value)
             ->assertJsonPath('data.headline', 'Pak Hendra')
+            ->assertJsonPath('data.customer_code', $customer->customer_code)
             ->assertJsonPath('data.phone', '081234567890')
             ->assertJsonPath('data.ip_address', '192.168.10.5')
             ->assertJsonPath('data.subscription_package', '20 Mbps');
