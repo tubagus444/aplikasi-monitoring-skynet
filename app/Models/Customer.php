@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Customer extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, LogsActivity;
 
     protected $fillable = [
         'customer_code',
@@ -127,5 +129,20 @@ class Customer extends Model
     public function ipPool()
     {
         return $this->belongsTo(IpPool::class, 'ip_pool_id');
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('pelanggan')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => 'Pelanggan baru ditambahkan',
+                'updated' => 'Data pelanggan diperbarui',
+                'deleted' => 'Data pelanggan dihapus',
+                default => "Pelanggan {$eventName}",
+            });
     }
 }

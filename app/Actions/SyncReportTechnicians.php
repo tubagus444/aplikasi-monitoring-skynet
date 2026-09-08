@@ -7,6 +7,7 @@ use App\Enums\ReportCategory;
 use App\Models\DamageReport;
 use App\Models\Notification;
 use App\Models\TaskAssignment;
+use App\Models\User;
 
 /**
  * Sinkronkan penugasan teknisi sebuah laporan, lalu kirim notifikasi HANYA ke
@@ -33,10 +34,14 @@ class SyncReportTechnicians
         $toRemove = array_diff($existingIds, $technicianIds);
         $toAdd    = array_diff($technicianIds, $existingIds);
 
+        $logMessages = [];
+
         if ($toRemove) {
+            $removedNames = User::whereIn('id', $toRemove)->pluck('name')->implode(', ');
             $report->taskAssignments()
                 ->whereIn('technician_id', $toRemove)
                 ->delete();
+            $logMessages[] = "Mencopot penugasan teknisi: {$removedNames}";
         }
 
         // Pesan notifikasi sadar kategori: laporan pelanggan menyebut nama pelanggan;
@@ -58,6 +63,27 @@ class SyncReportTechnicians
                 'type'       => NotificationType::TaskAssigned->value,
                 'related_id' => $report->id,
             ]);
+        }
+
+        if ($toAdd) {
+            $addedNames = User::whereIn('id', $toAdd)->pluck('name')->implode(', ');
+            $logMessages[] = "Menugaskan teknisi: {$addedNames}";
+        }
+
+        if (! empty($logMessages) && auth()->check()) {
+            activity('laporan')
+                ->performedOn($report)
+                ->causedBy(auth()->user())
+                ->event('updated')
+                ->withProperties([
+                    'attributes' => [
+                        'technician_ids' => $technicianIds,
+                    ],
+                    'old' => [
+                        'technician_ids' => $existingIds,
+                    ],
+                ])
+                ->log(implode('; ', $logMessages));
         }
     }
 }

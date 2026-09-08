@@ -63,6 +63,7 @@ new class extends Component
         <x-mary-menu-item title="Jenis Gangguan" icon="o-wrench-screwdriver" route="damage-types.index" />
         <x-mary-menu-item title="Paket Internet" icon="o-wifi" route="internet-packages.index" />
         <x-mary-menu-item title="Pengguna"   icon="o-users"              route="users.index"  />
+        <x-mary-menu-item title="Log Aktivitas" icon="o-clipboard-document-list" route="activity-logs.index" />
     </x-mary-menu>
 
     {{-- Footer: avatar + name + theme toggle + logout --}}

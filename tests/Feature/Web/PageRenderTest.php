@@ -46,6 +46,7 @@ class PageRenderTest extends TestCase
             '/customers'    => 'Pelanggan',
             '/damage-types' => 'Jenis Gangguan',
             '/users'        => 'Pengguna',
+            '/activity-logs' => 'Log Aktivitas',
         ];
 
         foreach ($halaman as $path => $label) {

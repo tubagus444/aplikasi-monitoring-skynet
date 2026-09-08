@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class DamageReport extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
     protected $fillable = [
         'created_by',
         'damage_type_id',
@@ -125,5 +127,20 @@ class DamageReport extends Model
     public function photos()
     {
         return $this->hasMany(ReportPhoto::class, 'report_id');
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('laporan')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => 'Laporan dibuat',
+                'updated' => 'Laporan diperbarui',
+                'deleted' => 'Laporan dihapus',
+                default => "Laporan {$eventName}",
+            });
     }
 }

@@ -164,6 +164,28 @@
 
 ---
 
+## Tabel: activity_log (Audit Trail)
+- `id` (bigint unsigned, PK, auto-increment)
+- `log_name` (varchar, nullable, Index) - Kategori/modul entitas (mis. `laporan`, `pelanggan`, `pengguna`, `paket-internet`, `ip-pool`)
+- `description` (text) - Deskripsi aktivitas audit (mis. "Data pelanggan diperbarui", "Menugaskan teknisi: Budi")
+- `subject_type` (varchar, nullable) - Morph type data yang diubah (mis. `App\Models\Customer`, `App\Models\DamageReport`)
+- `subject_id` (bigint unsigned, nullable) - Morph ID data yang diubah
+- `event` (varchar, nullable) - Jenis tindakan (mis. `created`, `updated`, `deleted`)
+- `causer_type` (varchar, nullable) - Morph type user pelaku perubahan (`App\Models\User`)
+- `causer_id` (bigint unsigned, nullable) - Morph ID user pelaku perubahan (NULL jika dijalankan oleh sistem/tamu)
+- `properties` (json, nullable) - Detail perubahan nilai atribut (JSON memuat perbandingan `old` vs `attributes`)
+- `batch_uuid` (uuid, nullable) - Identifier grup batch log jika dieksekusi bersamaan
+- `created_at` (timestamp, nullable) - Waktu pencatatan aktivitas
+- `updated_at` (timestamp, nullable)
+- **Index**:
+  - `log_name`
+  - `(subject_type, subject_id)` — morph index
+  - `(causer_type, causer_id)` — morph index
+
+> **Catatan Pembersihan Otomatis (Retention)**: Log dibersihkan secara otomatis via scheduler harian (`Schedule::command('activitylog:clean --force')->daily()` pada `routes/console.php`). Batas usia simpan default adalah 365 hari dan dapat disesuaikan melalui variabel `ACTIVITY_LOGGER_RETENTION_DAYS` pada file `.env`.
+
+---
+
 ## Tabel: cache (Laravel Framework)
 - `key` (varchar, PK)
 - `value` (mediumtext)

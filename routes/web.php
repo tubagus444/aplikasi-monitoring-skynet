@@ -23,6 +23,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('damage-types', 'pages.jenis-gangguan.index')->name('damage-types.index');
     Volt::route('internet-packages', 'pages.paket-internet.index')->name('internet-packages.index');
     Volt::route('users', 'pages.pengguna.index')->name('users.index');
+    Volt::route('activity-logs', 'pages.log-aktivitas.index')->name('activity-logs.index');
 });
 
 require __DIR__.'/auth.php';

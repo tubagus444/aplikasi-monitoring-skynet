@@ -6,10 +6,12 @@ use App\Enums\IpPoolStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class IpPool extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'ip_address',
@@ -95,5 +97,20 @@ class IpPool extends Model
             'customer_id' => null,
             'notes'       => $notes ?? $this->notes,
         ]);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('ip-pool')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => 'IP Pool ditambahkan',
+                'updated' => 'IP Pool diperbarui',
+                'deleted' => 'IP Pool dihapus',
+                default => "IP Pool {$eventName}",
+            });
     }
 }
