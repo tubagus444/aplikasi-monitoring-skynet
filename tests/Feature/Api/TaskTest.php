@@ -289,4 +289,66 @@ class TaskTest extends TestCase
             ->assertOk()
             ->assertJson(['status' => 'selesai']);
     }
+
+    public function test_teknisi_dapat_melihat_daftar_riwayat_tugas_selesai(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+        $reportSelesai = DamageReport::factory()->selesai()->create(['completed_at' => now()]);
+        $assignment = TaskAssignment::create([
+            'report_id'     => $reportSelesai->id,
+            'technician_id' => $teknisi->id,
+        ]);
+
+        $response = $this->actingAs($teknisi, 'sanctum')
+            ->getJson('/api/tasks?status=completed');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $assignment->id)
+            ->assertJsonPath('data.0.status', 'selesai');
+    }
+
+    public function test_daftar_riwayat_tugas_selesai_tidak_mencakup_tugas_aktif(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+        $reportAktif = DamageReport::factory()->create(['status' => 'ditugaskan']);
+        $reportSelesai = DamageReport::factory()->selesai()->create(['completed_at' => now()]);
+
+        $assignmentAktif = TaskAssignment::create([
+            'report_id'     => $reportAktif->id,
+            'technician_id' => $teknisi->id,
+        ]);
+        $assignmentSelesai = TaskAssignment::create([
+            'report_id'     => $reportSelesai->id,
+            'technician_id' => $teknisi->id,
+        ]);
+
+        // Default: hanya tugas aktif
+        $resAktif = $this->actingAs($teknisi, 'sanctum')->getJson('/api/tasks');
+        $resAktif->assertOk()->assertJsonCount(1, 'data');
+        $this->assertEquals($assignmentAktif->id, $resAktif->json('data.0.id'));
+
+        // Query status=completed: hanya tugas selesai
+        $resSelesai = $this->actingAs($teknisi, 'sanctum')->getJson('/api/tasks?status=completed');
+        $resSelesai->assertOk()->assertJsonCount(1, 'data');
+        $this->assertEquals($assignmentSelesai->id, $resSelesai->json('data.0.id'));
+    }
+
+    public function test_payload_tugas_menyertakan_completed_at(): void
+    {
+        $teknisi = User::factory()->teknisi()->create();
+        $waktuSelesai = now();
+        $report = DamageReport::factory()->selesai()->create(['completed_at' => $waktuSelesai]);
+        $assignment = TaskAssignment::create([
+            'report_id'     => $report->id,
+            'technician_id' => $teknisi->id,
+        ]);
+
+        $response = $this->actingAs($teknisi, 'sanctum')
+            ->getJson("/api/tasks/{$assignment->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'selesai')
+            ->assertJsonPath('data.completed_at', $waktuSelesai->toIso8601String());
+    }
 }

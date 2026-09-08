@@ -21,12 +21,24 @@ class TaskController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $tasks = TaskAssignment::with(['report.damageType', 'report.customer.internetPackage'])
-            ->where('technician_id', $request->user()->id)
-            ->whereHas('report', fn($q) => $q->whereIn('status', [ReportStatus::Ditugaskan->value, ReportStatus::SedangMemperbaiki->value]))
-            ->latest('assigned_at')
-            ->get()
-            ->map(fn($a) => $this->formatTask($a));
+        $status = $request->query('status');
+
+        $query = TaskAssignment::with(['report.damageType', 'report.customer.internetPackage'])
+            ->where('technician_id', $request->user()->id);
+
+        if ($status === 'completed' || $status === 'selesai' || $status === 'history') {
+            $query->whereHas('report', fn($q) => $q->where('status', ReportStatus::Selesai->value))
+                ->join('damage_reports', 'task_assignments.report_id', '=', 'damage_reports.id')
+                ->orderByDesc('damage_reports.completed_at')
+                ->select('task_assignments.*');
+        } else {
+            $query->whereHas('report', fn($q) => $q->whereIn('status', [
+                ReportStatus::Ditugaskan->value,
+                ReportStatus::SedangMemperbaiki->value,
+            ]))->latest('assigned_at');
+        }
+
+        $tasks = $query->get()->map(fn($a) => $this->formatTask($a));
 
         return response()->json(['data' => $tasks]);
     }
@@ -224,6 +236,7 @@ class TaskController extends Controller
             'damage_type'  => $report->damageType?->name,
             'notes'        => $report->notes,
             'assigned_at'  => $assignment->assigned_at?->toIso8601String(),
+            'completed_at' => $report->completed_at?->toIso8601String(),
             // Kontak & info teknis pelanggan — null untuk laporan non-pelanggan.
             'customer_code'        => $customer?->customer_code,
             'phone'                => $customer?->phone,
