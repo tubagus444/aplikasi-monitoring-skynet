@@ -27,8 +27,8 @@ class TaskController extends Controller
             ->where('technician_id', $request->user()->id);
 
         if ($status === 'completed' || $status === 'selesai' || $status === 'history') {
-            $query->whereHas('report', fn($q) => $q->where('status', ReportStatus::Selesai->value))
-                ->join('damage_reports', 'task_assignments.report_id', '=', 'damage_reports.id')
+            $query->join('damage_reports', 'task_assignments.report_id', '=', 'damage_reports.id')
+                ->where('damage_reports.status', ReportStatus::Selesai->value)
                 ->orderByDesc('damage_reports.completed_at')
                 ->select('task_assignments.*');
         } else {

@@ -51,19 +51,19 @@ class Customer extends Model
      */
     public static function generateNextCode(): string
     {
-        $codes = static::withTrashed()
+        $maxCode = static::withTrashed()
             ->whereNotNull('customer_code')
             ->where('customer_code', 'like', 'SKY-%')
-            ->pluck('customer_code');
+            ->when(
+                \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'mysql',
+                fn ($q) => $q->orderByRaw('CAST(SUBSTRING(customer_code, 5) AS UNSIGNED) DESC'),
+                fn ($q) => $q->orderByRaw('CAST(SUBSTR(customer_code, 5) AS INTEGER) DESC')
+            )
+            ->value('customer_code');
 
         $maxNumber = 0;
-        foreach ($codes as $code) {
-            if (preg_match('/^SKY-(\d+)$/', $code, $matches)) {
-                $num = (int) $matches[1];
-                if ($num > $maxNumber) {
-                    $maxNumber = $num;
-                }
-            }
+        if ($maxCode && preg_match('/^SKY-(\d+)$/', $maxCode, $matches)) {
+            $maxNumber = (int) $matches[1];
         }
 
         return sprintf('SKY-%04d', $maxNumber + 1);
