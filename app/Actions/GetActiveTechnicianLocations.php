@@ -51,9 +51,8 @@ class GetActiveTechnicianLocations
             'report.photos' => fn ($q) => $q->latest('created_at')->limit(self::MAX_PHOTOS),
         ])
             ->whereHas('report', fn ($q) => $q->where('status', ReportStatus::SedangMemperbaiki->value))
-            ->get()
-            ->unique('technician_id') // satu laporan aktif per teknisi (yang pertama)
-            ->values();
+            ->latest('id')
+            ->get();
 
         if ($assignments->isEmpty()) {
             return [];
@@ -75,15 +74,48 @@ class GetActiveTechnicianLocations
             ->get()
             ->groupBy(fn ($log) => $log->technician_id . '-' . $log->report_id);
 
-        return $assignments->map(function ($assignment) use ($latestByPair) {
-            $latest = $latestByPair->get($assignment->technician_id . '-' . $assignment->report_id)?->first();
+        return $assignments->groupBy('technician_id')->map(function ($techAssignments, $techId) use ($latestByPair) {
+            $primaryAss = $techAssignments->first();
+            $tech = $primaryAss->technician;
+
+            // Kumpulkan seluruh tugas aktif yang sedang dikerjakan teknisi ini
+            $tasks = $techAssignments->map(function ($a) {
+                return [
+                    'id'          => $a->report_id,
+                    'customer'    => $a->report->judul,
+                    'address'     => $a->report->address,
+                    'damage_type' => $a->report->damageType?->name,
+                ];
+            })->values()->all();
+
+            // Titik GPS paling baru di antara seluruh tugas aktif teknisi ini
+            $latest = $techAssignments
+                ->map(fn ($a) => $latestByPair->get($a->technician_id . '-' . $a->report_id)?->first())
+                ->filter()
+                ->sortByDesc('recorded_at')
+                ->first();
+
+            // Kumpulkan foto bukti dari seluruh tugas aktif teknisi (maks MAX_PHOTOS, terbaru dulu)
+            $photos = $techAssignments
+                ->flatMap(fn ($a) => $a->report->photos)
+                ->sortByDesc('created_at')
+                ->take(self::MAX_PHOTOS)
+                ->map(fn ($photo) => [
+                    'url'     => asset('storage/' . $photo->path),
+                    'caption' => $photo->caption,
+                ])
+                ->values()
+                ->all();
 
             return [
-                'id'          => $assignment->technician_id,
-                'name'        => $assignment->technician->name,
-                'customer'    => $assignment->report->judul,
-                'address'     => $assignment->report->address,
-                'damage_type' => $assignment->report->damageType?->name,
+                'id'          => $techId,
+                'name'        => $tech->name,
+                // Kompatibilitas ke belakang untuk pemanggil yang memakai string tunggal
+                'customer'    => $primaryAss->report->judul,
+                'address'     => $primaryAss->report->address,
+                'damage_type' => $primaryAss->report->damageType?->name,
+                'tasks'       => $tasks,
+                'tasks_count' => count($tasks),
                 'latitude'    => $latest?->latitude,
                 'longitude'   => $latest?->longitude,
                 'last_update' => $latest?->recorded_at?->diffForHumans(),
@@ -92,13 +124,8 @@ class GetActiveTechnicianLocations
                 'is_stale'    => $latest?->recorded_at
                     ? $latest->recorded_at->lt(now()->subMinutes(self::STALE_AFTER_MINUTES))
                     : false,
-                // Foto bukti pekerjaan (terbaru dulu) untuk strip thumbnail di
-                // sidebar Monitoring; [] bila belum ada. path → asset('storage/..').
-                'photos'      => $assignment->report->photos->map(fn ($photo) => [
-                    'url'     => asset('storage/' . $photo->path),
-                    'caption' => $photo->caption,
-                ])->all(),
+                'photos'      => $photos,
             ];
-        })->all();
+        })->values()->all();
     }
 }

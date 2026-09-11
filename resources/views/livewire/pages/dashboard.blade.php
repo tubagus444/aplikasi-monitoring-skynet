@@ -248,11 +248,30 @@ new #[Layout('layouts.app')] class extends Component
                 });
                 const markerList = [];
                 locations.forEach(loc => {
+                    let tasksHtml = '';
+                    if (loc.tasks && loc.tasks.length > 1) {
+                        tasksHtml = `
+                            <div style="margin:3px 0 0;padding:3px 0;border-top:1px solid #e5e7eb">
+                                <p style="margin:0 0 2px;font-size:10px;font-weight:600;color:#2563eb">${loc.tasks.length} Tugas Aktif:</p>
+                                <div style="display:flex;flex-direction:column;gap:2px;max-height:90px;overflow-y:auto">
+                                    ${loc.tasks.map(t => `
+                                        <div style="font-size:10px;line-height:1.2;background:#f9fafb;padding:2px 4px;border-radius:3px">
+                                            <strong>${t.customer}</strong>
+                                            <span style="color:#666">(${t.damage_type || 'Gangguan'})</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>`;
+                    } else {
+                        tasksHtml = `
+                            <p style="margin:0;font-size:12px;color:#555">${loc.customer || ''}</p>
+                            <p style="margin:2px 0 0;font-size:11px;color:#888">${loc.damage_type || ''}</p>`;
+                    }
+
                     const popup = `
-                        <div style="min-width:140px;line-height:1.4">
+                        <div style="min-width:140px;max-width:200px;line-height:1.4">
                             <p style="font-weight:600;margin:0 0 2px;font-size:13px">${loc.name}</p>
-                            <p style="margin:0;font-size:12px;color:#555">${loc.customer}</p>
-                            <p style="margin:2px 0 0;font-size:11px;color:#888">${loc.damage_type}</p>
+                            ${tasksHtml}
                         </div>`;
                     const id = String(loc.id);
                     if (markers[id]) {

@@ -166,4 +166,80 @@ class GetActiveTechnicianLocationsTest extends TestCase
             'Jumlah query harus konstan walau teknisi bertambah (indikasi bebas N+1).',
         );
     }
+
+    public function test_memprioritaskan_penugasan_terbaru_jika_teknisi_memiliki_beberapa_laporan_aktif(): void
+    {
+        $type = DamageType::factory()->create();
+        $tech = User::factory()->teknisi()->create();
+
+        // Laporan lama tanpa GPS
+        $reportLama = DamageReport::factory()->sedangDiperbaiki()->create([
+            'damage_type_id' => $type->id,
+            'customer_name'  => 'Pelanggan Lama',
+        ]);
+        TaskAssignment::create(['report_id' => $reportLama->id, 'technician_id' => $tech->id]);
+
+        // Laporan baru dengan GPS
+        $reportBaru = DamageReport::factory()->sedangDiperbaiki()->create([
+            'damage_type_id' => $type->id,
+            'customer_name'  => 'Pelanggan Baru',
+        ]);
+        TaskAssignment::create(['report_id' => $reportBaru->id, 'technician_id' => $tech->id]);
+        LocationLog::create([
+            'technician_id' => $tech->id,
+            'report_id'     => $reportBaru->id,
+            'latitude'      => -6.22,
+            'longitude'     => 107.04,
+            'recorded_at'   => now(),
+        ]);
+
+        $result = (new GetActiveTechnicianLocations)();
+
+        $this->assertCount(1, $result);
+        $this->assertEquals('Pelanggan Baru', $result[0]['customer']);
+        $this->assertEquals(-6.22, $result[0]['latitude']);
+        $this->assertEquals(107.04, $result[0]['longitude']);
+        $this->assertEquals(2, $result[0]['tasks_count']);
+        $this->assertCount(2, $result[0]['tasks']);
+        $this->assertEquals('Pelanggan Baru', $result[0]['tasks'][0]['customer']);
+        $this->assertEquals('Pelanggan Lama', $result[0]['tasks'][1]['customer']);
+    }
+
+    public function test_merangkum_seluruh_tugas_aktif_teknisi_dalam_array_tasks(): void
+    {
+        $type = DamageType::factory()->create(['name' => 'Kabel Putus']);
+        $tech = User::factory()->teknisi()->create(['name' => 'Budi Teknisi']);
+
+        $r1 = DamageReport::factory()->sedangDiperbaiki()->create([
+            'damage_type_id' => $type->id,
+            'customer_name'  => 'Pelanggan 1',
+            'address'        => 'Jl. Mawar No. 1',
+        ]);
+        TaskAssignment::create(['report_id' => $r1->id, 'technician_id' => $tech->id]);
+
+        $r2 = DamageReport::factory()->sedangDiperbaiki()->create([
+            'damage_type_id' => $type->id,
+            'customer_name'  => 'Pelanggan 2',
+            'address'        => 'Jl. Melati No. 2',
+        ]);
+        TaskAssignment::create(['report_id' => $r2->id, 'technician_id' => $tech->id]);
+
+        $r3 = DamageReport::factory()->sedangDiperbaiki()->create([
+            'damage_type_id' => $type->id,
+            'customer_name'  => 'Pelanggan 3',
+            'address'        => 'Jl. Anggrek No. 3',
+        ]);
+        TaskAssignment::create(['report_id' => $r3->id, 'technician_id' => $tech->id]);
+
+        $result = (new GetActiveTechnicianLocations)();
+
+        $this->assertCount(1, $result);
+        $this->assertEquals(3, $result[0]['tasks_count']);
+        $this->assertCount(3, $result[0]['tasks']);
+
+        $customers = array_column($result[0]['tasks'], 'customer');
+        $this->assertContains('Pelanggan 1', $customers);
+        $this->assertContains('Pelanggan 2', $customers);
+        $this->assertContains('Pelanggan 3', $customers);
+    }
 }

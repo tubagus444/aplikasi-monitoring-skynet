@@ -92,10 +92,28 @@ new #[Layout('layouts.app')] class extends Component
                                         <span class="text-xs text-base-content/30">Menunggu GPS</span>
                                     @endif
                                 </div>
-                                <p class="text-xs text-base-content/60 truncate">{{ $tech['customer'] }}</p>
-                                <p class="text-xs text-base-content/40">{{ $tech['damage_type'] }}</p>
+                                @if(!empty($tech['tasks']) && count($tech['tasks']) > 1)
+                                    <div class="mb-1.5">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary/10 text-primary mb-1.5">
+                                            {{ count($tech['tasks']) }} Tugas Aktif
+                                        </span>
+                                        <div class="flex flex-col gap-1">
+                                            @foreach($tech['tasks'] as $task)
+                                                <div class="p-1.5 rounded-lg bg-base-200/60 border border-base-300/40 text-xs">
+                                                    <p class="font-medium text-base-content/80 truncate">{{ $task['customer'] }}</p>
+                                                    @if($task['damage_type'])
+                                                        <p class="text-[11px] text-base-content/50 truncate">{{ $task['damage_type'] }}</p>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @else
+                                    <p class="text-xs text-base-content/60 truncate">{{ $tech['customer'] }}</p>
+                                    <p class="text-xs text-base-content/40">{{ $tech['damage_type'] }}</p>
+                                @endif
                                 @if($tech['last_update'])
-                                    <p class="text-xs text-base-content/30 mt-1">{{ $tech['last_update'] }}</p>
+                                    <p class="text-xs text-base-content/30 mt-1">&#128205; {{ $tech['last_update'] }}</p>
                                 @endif
 
                                 {{-- Foto bukti pekerjaan terbaru — strip thumbnail, klik buka galeri.
@@ -231,12 +249,31 @@ new #[Layout('layouts.app')] class extends Component
             locations.forEach(loc => {
                 if (!loc.latitude || !loc.longitude) return;
 
+                let tasksHtml = '';
+                if (loc.tasks && loc.tasks.length > 1) {
+                    tasksHtml = `
+                        <div style="margin:4px 0 0;padding:4px 0;border-top:1px solid #e5e7eb">
+                            <p style="margin:0 0 3px;font-size:11px;font-weight:600;color:#2563eb">${loc.tasks.length} Tugas Aktif:</p>
+                            <div style="display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto">
+                                ${loc.tasks.map(t => `
+                                    <div style="font-size:11px;line-height:1.2;background:#f9fafb;padding:3px 5px;border-radius:4px;border:1px solid #f3f4f6">
+                                        <strong style="color:#111">${t.customer}</strong>
+                                        <div style="color:#666;font-size:10px">${t.damage_type || ''}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>`;
+                } else {
+                    tasksHtml = `
+                        <p style="margin:0;font-size:12px;color:#555">${loc.customer || ''}</p>
+                        <p style="margin:2px 0 0;font-size:11px;color:#888">${loc.damage_type || ''}</p>
+                        <p style="margin:2px 0 0;font-size:11px;color:#aaa">${loc.address || ''}</p>`;
+                }
+
                 const popup = `
-                    <div style="min-width:160px;line-height:1.4">
+                    <div style="min-width:170px;max-width:240px;line-height:1.4">
                         <p style="font-weight:600;margin:0 0 4px;font-size:13px">${loc.name}</p>
-                        <p style="margin:0;font-size:12px;color:#555">${loc.customer}</p>
-                        <p style="margin:2px 0 0;font-size:11px;color:#888">${loc.damage_type}</p>
-                        <p style="margin:2px 0 0;font-size:11px;color:#aaa">${loc.address}</p>
+                        ${tasksHtml}
                         ${loc.last_update ? `<p style="margin:6px 0 0;font-size:11px;color:#aaa">&#128205; ${loc.last_update}</p>` : ''}
                     </div>`;
 
