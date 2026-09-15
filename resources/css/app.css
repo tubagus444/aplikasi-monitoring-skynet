@@ -148,4 +148,25 @@
         outline: 2px solid color-mix(in oklab, var(--color-primary) 35%, transparent);
         outline-offset: 1px;
     }
+
+    /*
+     * Isolasi z-index Leaflet Map:
+     * Leaflet secara bawaan menggunakan z-index tinggi (400 - 1000) untuk tile, marker, dan kontrol zoom.
+     * Tanpa stacking context terisolasi, elemen peta akan menembus dan menutupi:
+     * - Topbar sticky (z-10)
+     * - Sidebar drawer MaryUI/DaisyUI di layar HP / mobile (z-20)
+     * Rule ini mengisolasi container peta dan memastikan drawer sidebar mobile selalu di lapisan teratas.
+     */
+    .leaflet-container {
+        z-index: 0 !important;
+        position: relative;
+        isolation: isolate;
+    }
+
+    /* Pastikan drawer sidebar mobile selalu berada di atas konten & peta ketika dibuka */
+    @media (max-width: 1023px) {
+        .drawer-side {
+            z-index: 50 !important;
+        }
+    }
 }

@@ -135,7 +135,7 @@ new #[Layout('layouts.app')] class extends Component
                         <a href="{{ route('monitoring') }}" wire:navigate class="text-xs text-primary hover:underline">Buka halaman Monitoring →</a>
                     </div>
                 @else
-                    <div id="dashboard-map" class="h-full rounded-xl overflow-hidden w-full"></div>
+                    <div id="dashboard-map" class="h-full rounded-xl overflow-hidden w-full relative z-0 isolate"></div>
                 @endif
             </div>
         </x-mary-card>

@@ -144,8 +144,8 @@ new #[Layout('layouts.app')] class extends Component
 
         {{-- Peta --}}
         <div wire:ignore class="lg:col-span-2">
-            <x-mary-card class="p-0! overflow-hidden rounded-2xl">
-                <div id="monitoring-map" style="height:520px;width:100%;"></div>
+            <x-mary-card class="p-0! overflow-hidden rounded-2xl relative z-0 isolate">
+                <div id="monitoring-map" class="relative z-0" style="height:520px;width:100%;"></div>
             </x-mary-card>
         </div>
 
