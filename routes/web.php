@@ -7,6 +7,18 @@ use Livewire\Volt\Volt;
 
 Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'login'));
 
+// Unduh langsung file APK Android teknisi (publik, tanpa perlu login)
+Route::get('/download/apk', function () {
+    $path = public_path('downloads/monitoring-teknisi.apk');
+    if (! file_exists($path)) {
+        abort(404, 'File aplikasi Android belum tersedia.');
+    }
+
+    return response()->download($path, 'MonitoringTeknisi-v1.0.apk', [
+        'Content-Type' => 'application/vnd.android.package-archive',
+    ]);
+})->name('download.apk');
+
 Route::middleware(['auth'])->group(function () {
     Volt::route('dashboard', 'pages.dashboard')->name('dashboard');
     Volt::route('reports', 'pages.laporan.index')->name('reports.index');
