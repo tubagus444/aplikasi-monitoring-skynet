@@ -169,4 +169,21 @@
             z-index: 50 !important;
         }
     }
+
+    /*
+     * Tooltip aksi tabel: pastikan tooltip-left dan lg:tooltip-left selalu aktif
+     * menggeser tooltip ke arah kiri (ke dalam tabel) sehingga tidak terpotong tepi tabel/layar.
+     */
+    .tooltip-left,
+    .lg\:tooltip-left {
+        & > .tooltip-content,
+        &[data-tip]:before {
+            transform: translateX(calc(var(--tt-pos, 0.25rem) - 0.25rem)) translateY(-50%) !important;
+            inset: 50% var(--tt-off, calc(100% + 0.5rem)) auto auto !important;
+        }
+        &:after {
+            transform: translateX(var(--tt-pos, 0.25rem)) translateY(-50%) rotate(-90deg) !important;
+            inset: 50% calc(var(--tt-tail, calc(100% + 1px + 0.25rem)) + 1px) auto auto !important;
+        }
+    }
 }

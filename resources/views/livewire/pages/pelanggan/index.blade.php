@@ -354,7 +354,9 @@ new #[Layout('layouts.app')] class extends Component
             <x-mary-icon name="{{ $showTrashed ? 'o-arrow-uturn-left' : 'o-archive-box' }}" class="w-4 h-4" />
             {{ $showTrashed ? 'Kembali ke Daftar Aktif' : 'Pelanggan Terhapus' }}
             @if(! $showTrashed && $this->trashedCount > 0)
-                <span class="badge badge-warning badge-sm">{{ $this->trashedCount }}</span>
+                <span class="badge badge-warning text-xs font-bold min-w-6 h-6 px-1.5 rounded-full inline-flex items-center justify-center ms-1">
+                    {{ $this->trashedCount }}
+                </span>
             @endif
         </button>
     </div>
@@ -441,16 +443,16 @@ new #[Layout('layouts.app')] class extends Component
                             {{-- Tampilan terhapus: Pulihkan & Hapus Permanen --}}
                             <x-mary-button
                                 icon="o-arrow-uturn-left"
-                                class="btn-ghost btn-xs rounded-full text-success"
+                                class="btn-ghost btn-xs rounded-full text-success tooltip-left"
                                 wire:click="restoreCustomer({{ $customer->id }})"
-                                tooltip="Pulihkan"
+                                tooltip-left="Pulihkan"
                                 spinner="restoreCustomer({{ $customer->id }})"
                             />
                             <x-mary-button
                                 icon="o-trash"
-                                class="btn-ghost btn-xs rounded-full text-error"
+                                class="btn-ghost btn-xs rounded-full text-error tooltip-left"
                                 wire:click="confirmForceDelete({{ $customer->id }})"
-                                tooltip="Hapus Permanen"
+                                tooltip-left="Hapus Permanen"
                             />
                         @else
                             {{-- Tampilan normal: Detail, Edit, Hapus (soft delete) --}}
@@ -470,9 +472,9 @@ new #[Layout('layouts.app')] class extends Component
                             />
                             <x-mary-button
                                 icon="o-trash"
-                                class="btn-ghost btn-xs rounded-full text-error"
+                                class="btn-ghost btn-xs rounded-full text-error tooltip-left"
                                 wire:click="confirmDelete({{ $customer->id }})"
-                                tooltip="Hapus"
+                                tooltip-left="Hapus"
                             />
                         @endif
                     </div>
